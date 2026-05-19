@@ -1,0 +1,51 @@
+version: '3.8'
+
+services:
+  server:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: cn-server
+    hostname: server
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - ./:/app
+      - /app/data
+    networks:
+      - cn-network
+    command: sleep infinity
+    privileged: true
+    cap_add:
+      - NET_ADMIN
+      - SYS_ADMIN
+
+  client:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: cn-client
+    hostname: client
+    volumes:
+      - ./:/app
+      - /app/data
+    networks:
+      - cn-network
+    command: sleep infinity
+    privileged: true
+    depends_on:
+      - server
+    cap_add:
+      - NET_ADMIN
+      - SYS_ADMIN
+
+networks:
+  cn-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.25.0.0/16
+
+volumes:
+  app-data:
