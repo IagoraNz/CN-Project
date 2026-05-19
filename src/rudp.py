@@ -100,6 +100,7 @@ class RUDPSocket:
 
     def bind(self, host: str, port: int):
         """Bind socket to address"""
+        self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.socket.bind((host, port))
 
     def connect(self, host: str, port: int):
@@ -205,6 +206,8 @@ class RUDPSocket:
                 # Handle SYN (connection setup)
                 if header.flags & RUDPHeader.FLAG_SYN:
                     self._send_syn_ack(header.sequence)
+                    self.recv_seq = (header.sequence + 1) & 0xFFFF
+                    self.connected = True
                     continue
 
                 # Handle FIN (connection close)

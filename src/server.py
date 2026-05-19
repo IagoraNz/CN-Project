@@ -111,11 +111,15 @@ class FileTransferServer:
         finally:
             conn.close()
 
-    def handle_rudp_client(self, data, remote_addr):
+    def handle_rudp_client(self, data, remote_addr, stats=None):
         """Handle R-UDP file transfer"""
         logger.info(f'R-UDP Client connected: {remote_addr}')
 
         try:
+            if stats:
+                with self.metrics_lock:
+                    self.metrics['rudp']['retransmissions'] += stats.get('retransmissions', 0)
+
             if not data or len(data) < 2:
                 logger.warning('Invalid R-UDP data')
                 return
@@ -130,7 +134,6 @@ class FileTransferServer:
             file_data = data[2 + filename_len:]
 
             start_time = time.time()
-            elapsed = time.time() - start_time
 
             # Save file
             output_path = Path('/app/data') / 'received' / filename
@@ -139,6 +142,7 @@ class FileTransferServer:
             with open(output_path, 'wb') as f:
                 f.write(file_data)
 
+            elapsed = time.time() - start_time
             throughput = (len(file_data) * 8) / elapsed / 1e6 if elapsed > 0 else 0
             file_checksum = self._calculate_checksum(output_path)
 
@@ -196,26 +200,36 @@ class FileTransferServer:
     def run_rudp_server(self):
         """Run R-UDP server in background thread"""
         def rudp_thread():
-            server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            server_socket.bind((self.host, self.udp_port))
-
             logger.info(f'R-UDP Server listening on {self.host}:{self.udp_port}')
 
             try:
                 while True:
-                    data, remote_addr = server_socket.recvfrom(65507)
-                    # Handle client in separate thread
+                    rudp_socket = RUDPSocket()
+                    rudp_socket.bind(self.host, self.udp_port)
+
+                    try:
+                        data = rudp_socket.recv_data(timeout=120.0)
+                    except Exception as e:
+                        logger.error(f'R-UDP receive error: {e}', exc_info=True)
+                        rudp_socket.close()
+                        continue
+
+                    remote_addr = rudp_socket.remote_addr
+                    stats = rudp_socket.get_stats()
+                    rudp_socket.close()
+
+                    if not data or not remote_addr:
+                        continue
+
                     client_thread = threading.Thread(
                         target=self.handle_rudp_client,
-                        args=(data, remote_addr)
+                        args=(data, remote_addr, stats)
                     )
                     client_thread.daemon = True
                     client_thread.start()
             except KeyboardInterrupt:
                 logger.info('R-UDP Server shutting down')
             finally:
-                server_socket.close()
                 self.save_metrics()
 
         t = threading.Thread(target=rudp_thread, daemon=True)

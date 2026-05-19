@@ -24,6 +24,15 @@ log_warn() {
     echo -e "${YELLOW}[WARN]${NC} $1"
 }
 
+# Use tc directly in Docker (root); sudo only on host when not root
+if [[ "$(id -u)" -eq 0 ]]; then
+    TC=(tc)
+elif command -v sudo >/dev/null 2>&1; then
+    TC=(sudo tc)
+else
+    TC=(tc)
+fi
+
 # Check if interface exists
 if ! ip link show "$INTERFACE" > /dev/null 2>&1; then
     log_error "Interface $INTERFACE not found"
@@ -32,20 +41,20 @@ fi
 
 # Clear existing rules
 log_info "Clearing existing tc rules on $INTERFACE"
-sudo tc qdisc del dev "$INTERFACE" root 2>/dev/null
+"${TC[@]}" qdisc del dev "$INTERFACE" root 2>/dev/null || true
 
 case "$SCENARIO" in
     A)
         log_info "Applying Scenario A: 0% loss, 10ms delay"
-        sudo tc qdisc add dev "$INTERFACE" root netem delay 10ms
+        "${TC[@]}" qdisc add dev "$INTERFACE" root netem delay 10ms
         ;;
     B)
         log_info "Applying Scenario B: 10% loss, 50ms delay"
-        sudo tc qdisc add dev "$INTERFACE" root netem delay 50ms loss 10%
+        "${TC[@]}" qdisc add dev "$INTERFACE" root netem delay 50ms loss 10%
         ;;
     C)
         log_info "Applying Scenario C: 20% loss, 100ms delay"
-        sudo tc qdisc add dev "$INTERFACE" root netem delay 100ms loss 20%
+        "${TC[@]}" qdisc add dev "$INTERFACE" root netem delay 100ms loss 20%
         ;;
     *)
         log_error "Unknown scenario: $SCENARIO"
@@ -56,4 +65,4 @@ esac
 
 # Display current rules
 log_info "Current tc configuration:"
-sudo tc qdisc show dev "$INTERFACE"
+"${TC[@]}" qdisc show dev "$INTERFACE"

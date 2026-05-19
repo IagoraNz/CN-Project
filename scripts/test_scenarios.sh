@@ -7,7 +7,7 @@ set -e
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DATA_DIR="$PROJECT_ROOT/data"
-TEST_FILE="$DATA_DIR/test_file.bin"
+TEST_FILE="$DATA_DIR/send/test_file.bin"
 TEST_FILE_SIZE=$((1024 * 1024))  # 1MB
 
 # Colors
@@ -32,7 +32,9 @@ log_warn() {
 create_test_file() {
     log_info "Creating test file ($TEST_FILE_SIZE bytes)..."
     mkdir -p "$DATA_DIR/send"
-    dd if=/dev/urandom of="$TEST_FILE" bs=1M count=1 2>/dev/null
+    if [[ ! -f "$TEST_FILE" ]]; then
+        dd if=/dev/urandom of="$TEST_FILE" bs=1M count=1 2>/dev/null
+    fi
     log_success "Test file created: $TEST_FILE"
 }
 
@@ -44,24 +46,16 @@ run_scenario_test() {
 
     log_info "Scenario $scenario - $protocol"
 
-    # Apply network conditions
-    bash "$PROJECT_ROOT/scripts/setup_network.sh" "$interface" "$scenario"
+    docker exec cn-server bash /app/scripts/setup_network.sh "$interface" "$scenario"
+    docker exec cn-server bash /app/scripts/capture_traffic.sh start "$interface" /app/data/pcap
+    sleep 0.5
 
-    # Start traffic capture
-    bash "$PROJECT_ROOT/scripts/capture_traffic.sh" "$interface" "$DATA_DIR/pcap" 30 &
-    CAPTURE_PID=$!
-    sleep 1
-
-    # Run transfer
     log_info "Transferring via $protocol..."
-    docker exec cn-client python3 src/client.py "$TEST_FILE" \
-        --protocol "$protocol" \
-        --server server \
-        --tcp-port 9000 \
-        --udp-port 9001
+    docker exec cn-client python3 src/client.py /app/data/send/test_file.bin \
+        --protocol "$protocol" --scenario "$scenario" \
+        --server server --tcp-port 9000 --udp-port 9001
 
-    # Wait for capture
-    wait $CAPTURE_PID 2>/dev/null || true
+    docker exec cn-server bash /app/scripts/capture_traffic.sh stop /app/data/pcap
     log_success "Scenario $scenario - $protocol completed"
     sleep 2
 }
@@ -74,7 +68,7 @@ main() {
     # Check Docker
     if ! docker ps > /dev/null 2>&1; then
         log_warn "Docker not running. Please start containers first:"
-        echo "  docker-compose up -d"
+        echo "  make up"
         exit 1
     fi
 

@@ -10,6 +10,7 @@ RUN apt-get update && apt-get install -y \
     net-tools \
     iproute2 \
     tcpdump \
+    tshark \
     iputils-ping \
     curl \
     wget \
@@ -23,8 +24,7 @@ RUN pip3 install --no-cache-dir \
     pandas \
     matplotlib \
     seaborn \
-    plotly \
-    kaleido
+    plotly
 
 # Create working directory
 WORKDIR /app

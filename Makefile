@@ -1,5 +1,7 @@
 .PHONY: help setup build up down logs test clean analyze restart
 
+COMPOSE = bash scripts/compose.sh
+
 help:
 	@echo "CN-Project Phase 1 - Commands"
 	@echo "=============================="
@@ -32,16 +34,16 @@ setup:
 	bash scripts/quickstart.sh
 
 build:
-	docker-compose build
+	$(COMPOSE) build
 
 up:
-	docker-compose up -d
+	$(COMPOSE) up -d
 
 down:
-	docker-compose down
+	$(COMPOSE) down
 
 logs:
-	docker-compose logs -f
+	$(COMPOSE) logs -f
 
 logs-server:
 	docker exec cn-server tail -f /app/data/logs/*.log
@@ -50,25 +52,25 @@ logs-client:
 	docker exec cn-client tail -f /app/data/logs/*.log
 
 test-tcp:
-	docker exec cn-client python3 src/client.py /app/data/send/test_file.bin --protocol tcp
+	bash scripts/with_capture.sh tcp
 
 test-rudp:
-	docker exec cn-client python3 src/client.py /app/data/send/test_file.bin --protocol rudp
+	bash scripts/with_capture.sh rudp
 
 test-scenario-a:
 	docker exec cn-server bash scripts/setup_network.sh eth0 A
-	docker exec cn-client python3 src/client.py /app/data/send/test_file.bin --protocol tcp
+	bash scripts/with_capture.sh tcp eth0 A
 
 test-scenario-b:
 	docker exec cn-server bash scripts/setup_network.sh eth0 B
-	docker exec cn-client python3 src/client.py /app/data/send/test_file.bin --protocol tcp
+	bash scripts/with_capture.sh tcp eth0 B
 
 test-scenario-c:
 	docker exec cn-server bash scripts/setup_network.sh eth0 C
-	docker exec cn-client python3 src/client.py /app/data/send/test_file.bin --protocol tcp
+	bash scripts/with_capture.sh tcp eth0 C
 
 test-all:
-	docker exec cn-client bash scripts/run_tests.sh
+	bash scripts/run_tests.sh
 
 analyze:
 	docker exec cn-server python3 analysis/analyze.py

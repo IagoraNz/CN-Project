@@ -202,11 +202,16 @@ if __name__ == '__main__':
     parser.add_argument('--server', default='server', help='Server hostname')
     parser.add_argument('--tcp-port', type=int, default=9000, help='TCP port')
     parser.add_argument('--udp-port', type=int, default=9001, help='UDP port')
+    parser.add_argument('--scenario', default=None,
+                       help='Network scenario label (A, B, C) for analysis')
 
     args = parser.parse_args()
 
     client = FileTransferClient(args.server, args.tcp_port, args.udp_port)
     result = client.send_file(args.file, args.protocol)
+
+    if args.scenario and 'error' not in result:
+        result['scenario'] = args.scenario.upper()
 
     print(json.dumps(result, indent=2))
     client.save_metrics()

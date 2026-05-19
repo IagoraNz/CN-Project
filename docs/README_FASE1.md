@@ -54,18 +54,20 @@ STUDENT_NAME=Seu Nome
 ### 2. Construir Imagem Docker
 
 ```bash
-docker-compose build
+make build
+# ou: bash scripts/compose.sh build
 ```
 
 ### 3. Iniciar Containers
 
 ```bash
-docker-compose up -d
+make up
+# ou: bash scripts/compose.sh up -d
 ```
 
 Verificar status:
 ```bash
-docker-compose ps
+bash scripts/compose.sh ps
 ```
 
 ### 4. Acessar Containers

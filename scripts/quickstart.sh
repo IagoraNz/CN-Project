@@ -5,6 +5,9 @@
 
 set -e
 
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+COMPOSE="$PROJECT_ROOT/scripts/compose.sh"
+
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
@@ -42,26 +45,27 @@ log_success "Data directories created"
 
 # Build Docker image
 log_info "Building Docker image..."
-docker-compose build --quiet
+"$COMPOSE" build --quiet
 log_success "Docker image built"
 
 # Start containers
 log_info "Starting containers..."
-docker-compose up -d
+"$COMPOSE" up -d
 log_success "Containers started"
 
 # Wait for containers to be ready
 log_info "Waiting for containers to be ready..."
 sleep 3
 
-# Create test file in container
+# Create test file on host (shared by server and client via bind mount)
 log_info "Creating test file (1MB)..."
-docker exec cn-server dd if=/dev/urandom of=/app/data/send/test_file.bin bs=1M count=1 2>/dev/null
-log_success "Test file created: /app/data/send/test_file.bin"
+mkdir -p "$PROJECT_ROOT/data/send"
+dd if=/dev/urandom of="$PROJECT_ROOT/data/send/test_file.bin" bs=1M count=1 2>/dev/null
+log_success "Test file created: data/send/test_file.bin"
 
 # Show container info
 log_info "Container status:"
-docker-compose ps
+"$COMPOSE" ps
 
 log_info ""
 log_success "Setup complete!"
