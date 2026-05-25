@@ -59,6 +59,7 @@ run_test() {
         --protocol "$protocol" --scenario "$scenario" \
         --server server --tcp-port 9000 --udp-port 9001
 
+    sleep 2 # Aguarda o flush do tcpdump e pacotes atrasados
     docker exec cn-server bash /app/scripts/capture_traffic.sh stop /app/data/pcap
     log_success "Test completed: Scenario $scenario, $protocol"
     sleep 2

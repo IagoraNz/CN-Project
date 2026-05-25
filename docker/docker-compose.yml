@@ -12,7 +12,7 @@ services:
       - ./:/app
     networks:
       - cn-network
-    command: sleep infinity
+    command: python3 src/server.py --protocol both
     privileged: true
     cap_add:
       - NET_ADMIN

@@ -51,7 +51,7 @@ export_pcap() {
     if command -v tshark >/dev/null 2>&1; then
         log_info "Converting PCAP to CSV..."
         tshark -q -r "$pcap_file" -T fields \
-            -e frame.number -e frame.time -e ip.src -e ip.dst \
+            -e frame.number -e frame.time -e frame.time_epoch -e ip.src -e ip.dst \
             -e tcp.srcport -e tcp.dstport -e udp.srcport -e udp.dstport \
             -e frame.len -e tcp.flags -e tcp.seq -e tcp.ack \
             -E header=y -E separator=',' > "$csv_file" 2>/dev/null

@@ -44,7 +44,6 @@ CN-Project/
 ├── results/             # Gráficos HTML e relatórios
 ├── docs/                # README_FASE1.md com documentação detalhada
 ├── Makefile            # Comandos de automação
-├── CLAUDE.md           # Guia de desenvolvimento
 └── .env.example        # Variáveis de ambiente
 ```
 

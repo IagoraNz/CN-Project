@@ -66,13 +66,15 @@ class RUDPHeader:
 class RUDPSocket:
     """Reliable UDP Socket with Go-Back-N Windowing"""
 
-    def __init__(self, timeout: float = 2.0, max_retries: int = 5,
-                 window_size: int = 4, chunk_size: int = 1024):
+    def __init__(self, timeout: float = 1.5, max_retries: int = 10,
+                 window_size: int = 8, chunk_size: int = 1024,
+                 transfer_timeout: float = 120.0):
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.timeout = timeout
         self.max_retries = max_retries
         self.window_size = window_size
         self.chunk_size = chunk_size
+        self.transfer_timeout = transfer_timeout
 
         # Sender state
         self.send_seq = 0  # Next sequence to send
@@ -137,19 +139,29 @@ class RUDPSocket:
                 raise TimeoutError("Connection SYN-ACK timeout")
 
     def send_data(self, data: bytes) -> int:
-        """Send data with sliding window and retransmission"""
+        """Send data with sliding window, retransmission and global deadline."""
         if not self.connected:
             raise RuntimeError("Not connected")
 
-        total_sent = 0
         offset = 0
+        deadline = time.time() + self.transfer_timeout
 
-        while offset < len(data):
-            # Clean up acked packets
+        while offset < len(data) or self.unacked_packets:
+            # ----- global timeout guard -----
+            if time.time() > deadline:
+                raise TimeoutError(
+                    f"R-UDP transfer timed out after {self.transfer_timeout}s "
+                    f"({offset}/{len(data)} bytes sent)"
+                )
+
+            # Clean up any already-acked packets from previous iterations
             self._process_acks()
 
-            # Send window's worth of packets
-            while (self.send_seq - self.send_base) & 0xFFFF < self.window_size and offset < len(data):
+            # Fill the send window
+            while (
+                (self.send_seq - self.send_base) & 0xFFFF < self.window_size
+                and offset < len(data)
+            ):
                 chunk = data[offset:offset + self.chunk_size]
                 offset += len(chunk)
 
@@ -163,21 +175,23 @@ class RUDPSocket:
                 self.unacked_packets[self.send_seq] = (packet, time.time(), 0)
                 self.stats['packets_sent'] += 1
                 self.stats['bytes_sent'] += len(chunk)
-
                 self.send_seq = (self.send_seq + 1) & 0xFFFF
 
-            # Wait for ACKs with timeout
+            # Wait for ACK
             try:
                 ack_data, _ = self.socket.recvfrom(RUDPHeader.SIZE + 1024)
                 ack_header, _ = RUDPHeader.deserialize(ack_data)
 
                 if ack_header.flags & RUDPHeader.FLAG_ACK:
-                    # Move window base forward
-                    self.send_base = (ack_header.ack + 1) & 0xFFFF
-                    total_sent = offset
+                    acked_seq = ack_header.ack
+                    # Cumulative ACK: remove everything up to and including acked_seq
+                    for seq in list(self.unacked_packets.keys()):
+                        if (acked_seq - seq) & 0xFFFF <= 32768:
+                            del self.unacked_packets[seq]
+                    self.send_base = (acked_seq + 1) & 0xFFFF
 
             except socket.timeout:
-                # Retransmit unacked packets (Go-Back-N)
+                # Go-Back-N: retransmit window; raises if max_retries exhausted
                 self._retransmit_window()
 
         # Send FIN
@@ -260,12 +274,20 @@ class RUDPSocket:
             self.socket.settimeout(self.timeout)
 
     def _retransmit_window(self):
-        """Retransmit unacked packets (Go-Back-N)"""
+        """Retransmit unacked packets (Go-Back-N).
+        Raises RuntimeError if any packet has exceeded max_retries.
+        """
         now = time.time()
         for seq in sorted(self.unacked_packets.keys()):
             packet, last_time, retries = self.unacked_packets[seq]
 
-            if now - last_time > self.timeout and retries < self.max_retries:
+            if retries >= self.max_retries:
+                raise RuntimeError(
+                    f"R-UDP: seq={seq} exceeded max retries ({self.max_retries}). "
+                    "Network too lossy or server unreachable."
+                )
+
+            if now - last_time > self.timeout:
                 self.socket.sendto(packet, self.remote_addr)
                 self.unacked_packets[seq] = (packet, now, retries + 1)
                 self.stats['retransmissions'] += 1

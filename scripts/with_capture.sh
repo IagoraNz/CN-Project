@@ -18,4 +18,6 @@ docker exec cn-server bash /app/scripts/capture_traffic.sh start "$INTERFACE" /a
 sleep 0.5
 docker exec cn-client python3 src/client.py /app/data/send/test_file.bin \
     --protocol "$PROTOCOL" "${SCENARIO_ARGS[@]}"
+
+sleep 2 # Aguarda o flush do tcpdump e pacotes atrasados
 docker exec cn-server bash /app/scripts/capture_traffic.sh stop /app/data/pcap
