@@ -30,6 +30,9 @@ make test-all
 
 # Gerar gráficos e análise
 make analyze
+
+# Interface gráfica (botões Setup, Test, Analyze, Down + logs; só Python 3)
+make ui
 ```
 
 ### 📁 Estrutura do Projeto

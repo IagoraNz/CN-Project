@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CN-Project — Painel de Controle</title>
+  <link rel="stylesheet" href="/static/css/style.css" />
+</head>
+<body>
+  <svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
+    <symbol id="icon-setup" viewBox="0 0 24 24"><path fill="currentColor" d="M12 15.5A3.5 3.5 0 0 1 8.5 12 3.5 3.5 0 0 1 12 8.5a3.5 3.5 0 0 1 3.5 3.5 3.5 3.5 0 0 1-3.5 3.5m7.43-2.53c.04-.32.07-.64.07-.97 0-.33-.03-.66-.07-1l2.11-1.65c.2-.15.25-.42.12-.64l-2-3.46c-.12-.22-.39-.3-.61-.22l-2.49 1c-.52-.4-1.08-.73-1.69-.98l-.38-2.65A.506.506 0 0 0 14 2h-4c-.25 0-.46.18-.5.42l-.38 2.65c-.61.25-1.17.59-1.69.98l-2.49-1c-.23-.09-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64L4.57 11c-.04.34-.07.67-.07 1 0 .33.03.65.07.97l-2.11 1.65c-.2.15-.25.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1c.52.4 1.08.73 1.69.98l.38 2.65c.04.24.25.42.5.42h4c.25 0 .46-.18.5-.42l.38-2.65c.61-.25 1.17-.59 1.69-.98l2.49 1c.22.08.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.65Z"/></symbol>
+    <symbol id="icon-test" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2 2 7v10l10 5 10-5V7L12 2zm0 2.18 6.9 3.45L12 11.09 5.1 7.63 12 4.18zM4 8.82l7 3.5v7.36l-7-3.5V8.82zm9 10.86v-7.36l7-3.5v7.36l-7 3.5z"/></symbol>
+    <symbol id="icon-analyze" viewBox="0 0 24 24"><path fill="currentColor" d="M5 19h2V9H5v10zm6 0h2V5h-2v14zm6 0h2V2h-2v17z"/></symbol>
+    <symbol id="icon-down" viewBox="0 0 24 24"><path fill="currentColor" d="M13 3h-2v10H8l4 4 4-4h-3V3zM5 19v2h14v-2H5z"/></symbol>
+    <symbol id="icon-brand" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2 3 7v10l9 5 9-5V7l-9-5zm0 3.09 5.74 2.87L12 10.82 6.26 7.96 12 5.09zM5 9.82 11 12.5v5.68l-6-3.33V9.82zm13 0v5.03l-6 3.33V12.5l6-2.68z"/></symbol>
+    <symbol id="icon-client" viewBox="0 0 24 24"><path fill="currentColor" d="M4 6h16v10H4V6zm2 12h12v2H6v-2zm-1-14a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2H5z"/></symbol>
+    <symbol id="icon-server" viewBox="0 0 24 24"><path fill="currentColor" d="M4 4h16a2 2 0 0 1 2 2v3H2V6a2 2 0 0 1 2-2zm18 7v3H2v-3h20zM2 17v3a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-3H2zm3 2a1 1 0 1 1 0-2 1 1 0 0 1 0 2zm4 0a1 1 0 1 1 0-2 1 1 0 0 1 0 2zm9-9a1 1 0 1 1 0-2 1 1 0 0 1 0 2zm-4 0a1 1 0 1 1 0-2 1 1 0 0 1 0 2z"/></symbol>
+    <symbol id="icon-gear" viewBox="0 0 24 24"><path fill="currentColor" d="M12 15.5A3.5 3.5 0 0 1 8.5 12 3.5 3.5 0 0 1 12 8.5a3.5 3.5 0 0 1 3.5 3.5 3.5 3.5 0 0 1-3.5 3.5m7.43-2.53c.04-.32.07-.64.07-.97 0-.33-.03-.66-.07-1l2.11-1.65c.2-.15.25-.42.12-.64l-2-3.46c-.12-.22-.39-.3-.61-.22l-2.49 1c-.52-.4-1.08-.73-1.69-.98l-.38-2.65A.506.506 0 0 0 14 2h-4c-.25 0-.46.18-.5.42l-.38 2.65c-.61.25-1.17.59-1.69.98l-2.49-1c-.23-.09-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64L4.57 11c-.04.34-.07.67-.07 1 0 .33.03.65.07.97l-2.11 1.65c-.2.15-.25.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1c.52.4 1.08.73 1.69.98l.38 2.65c.04.24.25.42.5.42h4c.25 0 .46-.18.5-.42l.38-2.65c.61-.25 1.17-.59 1.69-.98l2.49 1c.22.08.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.65Z"/></symbol>
+    <symbol id="icon-power" viewBox="0 0 24 24"><path fill="currentColor" d="M13 3h-2v8h2V3zm4.2 2.2-1.4 1.4A6.96 6.96 0 0 1 19 12c0 3.9-3.1 7-7 7s-7-3.1-7-7c0-2.1.9-4 2.4-5.2L6 5.6C4.1 7.3 3 9.5 3 12c0 5 4 9 9 9s9-4 9-9c0-2.5-1.1-4.7-2.8-6.3z"/></symbol>
+  </svg>
+
+  <div class="app">
+    <aside class="sidebar">
+      <header class="brand">
+        <svg class="svg-icon brand-icon" aria-hidden="true"><use href="#icon-brand"/></svg>
+        <div>
+          <h1>CN-Project</h1>
+          <p>Redes · Fase 1</p>
+        </div>
+      </header>
+
+      <nav class="actions">
+        <button class="action-btn" data-target="setup" id="btn-setup">
+          <svg class="svg-icon btn-icon" aria-hidden="true"><use href="#icon-setup"/></svg>
+          <span>Setup</span>
+        </button>
+        <button class="action-btn" data-target="test-all" id="btn-test">
+          <svg class="svg-icon btn-icon" aria-hidden="true"><use href="#icon-test"/></svg>
+          <span>Test</span>
+        </button>
+        <button class="action-btn" data-target="analyze" id="btn-analyze">
+          <svg class="svg-icon btn-icon" aria-hidden="true"><use href="#icon-analyze"/></svg>
+          <span>Analyze</span>
+        </button>
+        <button class="action-btn action-btn--danger" data-target="down" id="btn-down">
+          <svg class="svg-icon btn-icon" aria-hidden="true"><use href="#icon-down"/></svg>
+          <span>Down</span>
+        </button>
+      </nav>
+
+      <footer class="sidebar-footer">
+        <span id="status-pill" class="status-pill status-pill--idle">Pronto</span>
+      </footer>
+    </aside>
+
+    <main class="workspace">
+      <section class="panel animation-panel" id="animation-panel">
+        <div class="animation-stage" id="animation-stage" data-mode="idle">
+          <div class="scene scene--idle active" data-scene="idle">
+            <p class="scene-title scene-title--idle">Selecione uma ação</p>
+            <p class="scene-sub scene-sub--idle">Os logs aparecerão abaixo durante a execução</p>
+          </div>
+
+          <div class="scene scene--setup" data-scene="setup">
+            <div class="docker-stack">
+              <div class="container-box c1"></div>
+              <div class="container-box c2"></div>
+              <svg class="svg-icon gear gear--left" aria-hidden="true"><use href="#icon-gear"/></svg>
+              <svg class="svg-icon gear gear--right" aria-hidden="true"><use href="#icon-gear"/></svg>
+            </div>
+            <p class="scene-title">Configurando ambiente</p>
+            <p class="scene-sub" id="setup-sub">Build Docker · Subindo containers</p>
+            <div class="progress-wrap">
+              <div class="progress-bar progress-bar--setup" id="progress-setup"></div>
+            </div>
+          </div>
+
+          <div class="scene scene--test" data-scene="test-all">
+            <div class="network-viz">
+              <div class="net-host client" title="Cliente">
+                <svg class="svg-icon host-icon" aria-hidden="true"><use href="#icon-client"/></svg>
+              </div>
+              <div class="net-link">
+                <span class="packet p1"></span>
+                <span class="packet p2"></span>
+                <span class="packet p3"></span>
+              </div>
+              <div class="net-host server" title="Servidor">
+                <svg class="svg-icon host-icon" aria-hidden="true"><use href="#icon-server"/></svg>
+              </div>
+            </div>
+            <div class="scenario-chips" id="scenario-chips">
+              <span class="chip" data-s="A">A</span>
+              <span class="chip" data-s="B">B</span>
+              <span class="chip" data-s="C">C</span>
+            </div>
+            <p class="scene-title">Executando testes</p>
+            <p class="scene-sub" id="test-sub">Cenários A · B · C × TCP & R-UDP</p>
+            <div class="progress-wrap">
+              <div class="progress-bar progress-bar--test" id="progress-test"></div>
+            </div>
+          </div>
+
+          <div class="scene scene--analyze" data-scene="analyze">
+            <div class="chart-viz">
+              <div class="bar b1"></div>
+              <div class="bar b2"></div>
+              <div class="bar b3"></div>
+              <div class="bar b4"></div>
+              <div class="bar b5"></div>
+            </div>
+            <p class="scene-title">Gerando gráficos</p>
+            <p class="scene-sub" id="analyze-sub">Seaborn · Validação cruzada</p>
+            <div class="progress-wrap">
+              <div class="progress-bar progress-bar--analyze" id="progress-analyze"></div>
+            </div>
+          </div>
+
+          <div class="scene scene--graphs" data-scene="graphs">
+            <p class="scene-title">Gráficos gerados</p>
+            <p class="scene-sub">Escolha um gráfico para visualizar</p>
+            <div class="graph-picker" id="graph-picker"></div>
+            <div class="graph-viewer">
+              <img id="graph-image" alt="Gráfico selecionado" />
+              <p class="graph-caption" id="graph-caption"></p>
+            </div>
+            <button type="button" class="btn-back" id="btn-back-idle">Voltar ao início</button>
+          </div>
+
+          <div class="scene scene--down" data-scene="down">
+            <div class="shutdown-viz">
+              <div class="power-ring"></div>
+              <svg class="svg-icon power-icon" aria-hidden="true"><use href="#icon-power"/></svg>
+              <div class="fade-files">
+                <span></span><span></span><span></span>
+              </div>
+            </div>
+            <p class="scene-title">Encerrando</p>
+            <p class="scene-sub" id="down-sub">Parando containers · Limpando dados</p>
+            <div class="progress-wrap">
+              <div class="progress-bar progress-bar--down" id="progress-down"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel logs-panel">
+        <div class="logs-header">
+          <span>Logs de terminal</span>
+          <button type="button" class="logs-clear" id="btn-clear-logs" title="Limpar">Limpar</button>
+        </div>
+        <pre class="terminal" id="terminal" aria-live="polite"></pre>
+      </section>
+    </main>
+  </div>
+
+  <script src="/static/js/app.js"></script>
+</body>
+</html>
