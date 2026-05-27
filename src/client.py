@@ -70,11 +70,11 @@ class FileTransferClient:
             start_time = time.time()
             retrans_before = get_tcp_retrans_segs()
 
-            # Send auth + file payload
-            send_all(sock, auth_payload)
+            # Send auth + file payload — generous timeout for high-loss scenarios (C: ~60-120s)
+            send_all(sock, auth_payload, timeout=300.0)
 
-            # Receive ACK
-            ack = recv_all(sock, 3, timeout=5.0)
+            # Receive ACK — wait long enough for the server to process and reply
+            ack = recv_all(sock, 3, timeout=60.0)
             elapsed = time.time() - start_time
             retrans_after = get_tcp_retrans_segs()
             tcp_retransmissions = max(0, retrans_after - retrans_before)
@@ -215,7 +215,7 @@ if __name__ == '__main__':
     client = FileTransferClient(args.server, args.tcp_port, args.udp_port)
     result = client.send_file(args.file, args.protocol)
 
-    if args.scenario and 'error' not in result:
+    if args.scenario:
         result['scenario'] = args.scenario.upper()
         result['run'] = args.run
 

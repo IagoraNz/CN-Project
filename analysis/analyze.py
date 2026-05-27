@@ -72,14 +72,21 @@ class NetworkAnalyzer:
         pcap_metrics = []
         for csv_file in sorted(self.csv_dir.glob('*.csv')):
             try:
+                # Reject legacy tshark-format files (different schema, unusable)
+                with open(csv_file) as _f:
+                    first_line = _f.readline()
+                if 'frame.time,' in first_line or 'tcp.srcport' in first_line:
+                    continue
+
                 json_file = csv_file.with_suffix('.json')
                 has_auth = False
                 tcp_retrans_from_json = 0
                 if json_file.exists():
                     with open(json_file) as f:
                         meta = json.load(f)
-                    has_auth = meta.get('x_custom_auth_detected', False)
-                    tcp_retrans_from_json = meta.get('tcp_retransmissions', 0)
+                    if isinstance(meta, dict):
+                        has_auth = meta.get('x_custom_auth_detected', False)
+                        tcp_retrans_from_json = meta.get('tcp_retransmissions', 0)
 
                 parser = TCPDumpParser(csv_file)
                 tcp_stats = parser.get_tcp_stats()
@@ -126,27 +133,79 @@ class NetworkAnalyzer:
         return ok.reset_index(drop=True)
 
     def pair_metrics(self, app_metrics: list, pcap_metrics: list) -> pd.DataFrame:
-        """Pair application metrics with tcpdump captures in chronological order."""
+        """Pair application metrics with tcpdump captures using timestamp proximity.
+
+        Each PCAP capture starts just before the transfer; the app metric timestamp
+        records the moment the transfer completes. The best match is the latest PCAP
+        whose start time is ≤ the app metric completion time.
+        """
+        import re as _re
+        from datetime import datetime
+
+        def _pcap_start(filename: str):
+            m = _re.match(r'traffic_(\d{8})_(\d{6})', filename)
+            if m:
+                try:
+                    return datetime.strptime(m.group(1) + m.group(2), '%Y%m%d%H%M%S')
+                except ValueError:
+                    pass
+            return None
+
+        def _app_time(ts: str):
+            try:
+                return datetime.fromisoformat(ts)
+            except (ValueError, TypeError):
+                return None
+
+        indexed = [(i, p, _pcap_start(p.get('file', ''))) for i, p in enumerate(pcap_metrics)]
+        timed = [(i, p, dt) for i, p, dt in indexed if dt is not None]
+        timed.sort(key=lambda x: x[2])
+
         app_sorted = sorted(app_metrics, key=lambda x: x.get('timestamp', ''))
-        pcap_sorted = pcap_metrics[:len(app_sorted)]
+        used: set[int] = set()
+
+        def _pick_pcap(app_ts):
+            at = _app_time(app_ts)
+            if at:
+                # Prefer the latest capture that started before or at transfer completion
+                candidates = [(i, p, dt) for i, p, dt in timed if dt <= at and i not in used]
+                if candidates:
+                    best = max(candidates, key=lambda x: x[2])
+                    return best[0], best[1]
+            # Fallback: first unused PCAP in order
+            unused = [(i, p) for i, p, _ in indexed if i not in used]
+            return unused[0] if unused else (0, pcap_metrics[0] if pcap_metrics else {})
+
+        empty_pcap = {
+            'tcpdump_bytes': 0, 'tcpdump_packets': 0, 'tcpdump_time_s': 0,
+            'tcp_retransmissions': 0, 'has_auth': False,
+        }
 
         rows = []
-        for app, pcap in zip(app_sorted, pcap_sorted):
+        for app in app_sorted:
+            pick = _pick_pcap(app.get('timestamp', ''))
+            if isinstance(pick, tuple):
+                idx, pcap = pick
+            else:
+                idx, pcap = 0, empty_pcap
+            if idx not in used and pcap_metrics:
+                used.add(idx)
+
             protocol = app.get('protocol', '').upper()
             scenario = app.get('scenario', 'Unknown')
             app_bytes = app.get('sent_bytes', app.get('size_bytes', 0))
             app_time_s = app.get('elapsed_seconds', 0)
 
-            retransmissions = app.get('retransmissions', 0)
+            retransmissions = app.get('retransmissions') or 0
             if protocol == 'TCP' and retransmissions == 0:
                 retransmissions = pcap.get('tcp_retransmissions', 0)
 
-            pcap_time_s = pcap['tcpdump_time_s']
+            pcap_time_s = pcap.get('tcpdump_time_s', 0)
             if protocol == 'TCP' and scenario in ('A', 'B', 'C'):
                 rtt_map = {'A': 0.02, 'B': 0.1, 'C': 0.2}
                 pcap_time_s = max(app_time_s, pcap_time_s - rtt_map.get(scenario, 0))
 
-            pcap_bytes = pcap['tcpdump_bytes']
+            pcap_bytes = pcap.get('tcpdump_bytes', 0)
             overhead_pct = max(0, ((pcap_bytes - app_bytes) / app_bytes) * 100) if app_bytes else 0
             efficiency_pct = (app_bytes / pcap_bytes) * 100 if pcap_bytes else 0
             time_diff_ms = abs(pcap_time_s - app_time_s) * 1000
@@ -155,12 +214,12 @@ class NetworkAnalyzer:
                 {
                     'sent_bytes': app_bytes,
                     'packets_sent': app.get('packets_sent', 0),
-                    'retransmissions': app.get('retransmissions', 0),
+                    'retransmissions': retransmissions,
                 },
                 {
                     'bytes': pcap_bytes,
-                    'total_packets': pcap['tcpdump_packets'],
-                    'retransmissions': pcap['tcp_retransmissions'],
+                    'total_packets': pcap.get('tcpdump_packets', 0),
+                    'retransmissions': pcap.get('tcp_retransmissions', 0),
                 }
             )
             validation = validator.run_validation()
@@ -168,7 +227,7 @@ class NetworkAnalyzer:
             rows.append({
                 'scenario': scenario,
                 'protocol': protocol,
-                'run': app.get('run', 1),
+                'run': app.get('run') or 1,
                 'app_bytes': app_bytes,
                 'app_time_s': app_time_s,
                 'tcpdump_bytes': pcap_bytes,
@@ -180,7 +239,7 @@ class NetworkAnalyzer:
                 'retransmissions': retransmissions,
                 'timestamp': app.get('timestamp', ''),
                 'x_custom_auth': app.get('x_custom_auth', ''),
-                'auth_in_pcap': pcap['has_auth'],
+                'auth_in_pcap': pcap.get('has_auth', False),
                 'validation_pass': validation['valid'],
             })
         return pd.DataFrame(rows)
@@ -217,83 +276,77 @@ class NetworkAnalyzer:
 
     def plot_with_errorbars(self, df: pd.DataFrame, y_col: str, title: str, ylabel: str, filename: str,
                             use_sem: bool = True, clip_negative: bool = False):
-        """Bar plot with mean ± SEM (or std) error bars, clipped for readability."""
+        """Bar plot for all protocol×scenario combinations; missing ones shown as hatched 'Sem dados'."""
         if df.empty:
             return
 
-        fig, ax = plt.subplots(figsize=(9, 5))
+        from matplotlib.patches import Patch
+
         grouped = df.groupby(['protocol', 'scenario'])[y_col]
-        means = grouped.mean().reset_index()
-        spread = grouped.sem().fillna(0).reset_index() if use_sem else grouped.std().fillna(0).reset_index()
+        means_s = grouped.mean()
+        spread_s = grouped.sem().fillna(0) if use_sem else grouped.std().fillna(0)
+        count_s = grouped.count()
 
-        merged = means.merge(spread, on=['protocol', 'scenario'], suffixes=('_mean', '_err'))
-        merged['protocol'] = pd.Categorical(merged['protocol'], categories=PROTOCOL_ORDER, ordered=True)
-        merged['scenario'] = pd.Categorical(merged['scenario'], categories=SCENARIO_ORDER, ordered=True)
-        merged = merged.sort_values(['protocol', 'scenario'])
+        # Build ordered lists covering every combination, filling missing with sentinel
+        x_labels, x_vals, heights, yerrs, colors, hatches, ns = [], [], [], [], [], [], []
+        for i, proto in enumerate(PROTOCOL_ORDER):
+            for j, scen in enumerate(SCENARIO_ORDER):
+                key = (proto, scen)
+                n = count_s.get(key, 0)
+                mean = float(means_s.get(key, 0.0))
+                err = float(spread_s.get(key, 0.0))
+                err = min(err, mean * 0.4) if mean > 0 else err
 
-        err_col = f'{y_col}_err'
-        mean_col = f'{y_col}_mean'
+                x_labels.append(f'{proto}\n{scen}\n(n={n})')
+                x_vals.append(len(x_vals))
+                heights.append(mean if n > 0 else 0.0)
+                yerrs.append(err if n > 0 else 0.0)
+                colors.append(PALETTE[j] if n > 0 else '#d8d8d8')
+                hatches.append(None if n > 0 else '//')
+                ns.append(n)
 
-        # Clip error bars: max 40% of mean (attenuates outliers), never below axis
-        merged['yerr'] = merged.apply(
-            lambda r: min(r[err_col], r[mean_col] * 0.4) if r[mean_col] > 0 else r[err_col],
-            axis=1
-        )
-
-        x_labels = [f'{p}\n{s}' for p, s in zip(merged['protocol'], merged['scenario'])]
-        x_pos = range(len(merged))
-        bar_colors = [PALETTE[SCENARIO_ORDER.index(s)] for s in merged['scenario']]
-
-        ax.bar(
-            x_pos, merged[mean_col],
-            yerr=merged['yerr'],
-            capsize=4, color=bar_colors,
+        fig, ax = plt.subplots(figsize=(11, 5.5))
+        bars = ax.bar(
+            x_vals, heights, yerr=yerrs,
+            capsize=4, color=colors,
             edgecolor='gray', linewidth=0.5,
             error_kw={'elinewidth': 1.2, 'capthick': 1.2}
         )
-        ax.set_xticks(x_pos)
+        for bar, hatch in zip(bars, hatches):
+            if hatch:
+                bar.set_hatch(hatch)
+
+        ax.set_xticks(x_vals)
         ax.set_xticklabels(x_labels, fontsize=9)
-        err_label = 'SEM' if use_sem else 'Desvio Padrão'
-        ax.set_title(f'{title}\n(barras de erro = {err_label}, limitadas a 40% da média)', fontweight='bold')
+
+        err_label = 'SEM' if use_sem else 'DP'
+        ax.set_title(f'{title}\n(barra de erro = {err_label})', fontweight='bold')
         ax.set_ylabel(ylabel)
         ax.set_xlabel('Protocolo / Cenário')
 
         if clip_negative or y_col == 'retransmissions':
             ax.set_ylim(bottom=0)
+        ax.margins(y=0.18)
 
-        for i, (_, row) in enumerate(merged.iterrows()):
-            label_y = row[mean_col] + row['yerr'] + max(row[mean_col] * 0.02, 0.5)
-            ax.text(i, label_y, f'{row[mean_col]:.1f}', ha='center', va='bottom', fontsize=8)
+        ymax = ax.get_ylim()[1]
+        for i, (h, ye, n) in enumerate(zip(heights, yerrs, ns)):
+            if n == 0:
+                ax.text(i, ymax * 0.04, 'Sem\ndados', ha='center', va='bottom',
+                        fontsize=7, color='#888888', style='italic')
+            else:
+                ax.text(i, h + ye + ymax * 0.01, f'{h:.1f}', ha='center', va='bottom',
+                        fontsize=8, fontweight='bold')
 
+        # Scenario colour legend + missing indicator
+        legend_handles = [
+            Patch(facecolor=PALETTE[k], label=f'Cenário {s}', edgecolor='gray')
+            for k, s in enumerate(SCENARIO_ORDER)
+        ]
+        legend_handles.append(Patch(facecolor='#d8d8d8', hatch='//', label='Sem dados', edgecolor='gray'))
+        ax.legend(handles=legend_handles, loc='upper right', fontsize=8, framealpha=0.85)
+
+        fig.subplots_adjust(bottom=0.18)
         self._save_fig(fig, filename)
-
-    def plot_cross_validation_lines(self, agg: pd.DataFrame):
-        """Line charts comparing app vs tcpdump bytes/time (mean values)."""
-        if agg.empty:
-            return
-
-        for metric_app, metric_pcap, label, fname in [
-            ('app_bytes_mean', 'tcpdump_bytes_mean', 'Bytes (KB)', 'linha_bytes_app_vs_tcpdump'),
-            ('app_time_s_mean', 'tcpdump_time_s_mean', 'Tempo (s)', 'linha_tempo_app_vs_tcpdump'),
-        ]:
-            fig, axes = plt.subplots(1, 2, figsize=(12, 5), sharey=False)
-            for ax, proto in zip(axes, PROTOCOL_ORDER):
-                sub = agg[agg['protocol'] == proto].sort_values('scenario')
-                if sub.empty:
-                    continue
-                ax.plot(sub['scenario'], sub[metric_app], marker='o', linewidth=2.5,
-                        label='Aplicação', color=PALETTE[0])
-                ax.plot(sub['scenario'], sub[metric_pcap], marker='s', linewidth=2.5,
-                        label='TCPDump', color=PALETTE[1])
-                ax.set_title(proto, fontweight='bold')
-                ax.set_xlabel('Cenário')
-                ax.set_ylabel(label)
-                ax.legend()
-                ax.grid(True, linestyle='--', alpha=0.6)
-            fig.suptitle(f'Validação Cruzada — {label}\n(Média por cenário)',
-                         fontweight='bold', y=1.02)
-            fig.tight_layout()
-            self._save_fig(fig, fname)
 
     def run(self):
         app_metrics = self.load_app_metrics()
@@ -321,21 +374,17 @@ class NetworkAnalyzer:
         agg.to_csv(agg_file, index=False)
         print(f'✓ Aggregated stats: {agg_file}')
 
-        self.plot_with_errorbars(df, 'throughput_mbps',
-                                 'Vazão (Throughput) — Média ± Desvio Padrão', 'Mbps', 'vazao_por_cenario')
-        self.plot_with_errorbars(df, 'app_time_s',
-                                 'Tempo de Transferência — Média ± Desvio Padrão', 'Segundos', 'tempo_transferencia')
         self.plot_with_errorbars(df, 'retransmissions',
-                                 'Retransmissões — Média ± Erro', 'Pacotes', 'retransmissoes',
+                                 'Retransmissões por Cenário — Média ± Erro', 'Pacotes', 'retransmissoes',
                                  clip_negative=True)
-        self.plot_with_errorbars(df, 'overhead_pct',
-                                 'Overhead de Bytes (TCPDump vs App) — Média ± Desvio', '%', 'validacao_overhead')
-        self.plot_with_errorbars(df, 'time_diff_ms',
-                                 'Δ Tempo (TCPDump vs App) — Média ± Desvio', 'ms', 'validacao_tempo')
         self.plot_with_errorbars(df, 'efficiency_pct',
-                                 'Eficiência de Payload — Média ± Desvio', '%', 'eficiencia_pacotes')
+                                 'Eficiência de Payload por Cenário — Média ± Desvio', '%', 'eficiencia_pacotes')
+        self.plot_with_errorbars(df, 'app_time_s',
+                                 'Tempo de Transferência por Cenário — Média ± Desvio Padrão', 'Segundos',
+                                 'tempo_transferencia')
+        self.plot_with_errorbars(df, 'throughput_mbps',
+                                 'Vazão por Cenário — Média ± Desvio Padrão', 'Mbps', 'vazao_por_cenario')
 
-        self.plot_cross_validation_lines(agg)
         print(f'Gráficos gerados ({len(df)} execuções pareadas).')
 
 

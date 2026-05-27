@@ -12,7 +12,7 @@ LINE_RE = re.compile(
     r'(.*?)(?:,\s*length\s+(\d+))?$'
 )
 TCP_SEQ_RE = re.compile(
-    r'Flags \[([^\]]*)\], seq (\d+)(?::(\d+))?, ack (\d+)(?:, win \d+)?(?:, options [^,]+)?, length (\d+)'
+    r'Flags \[([^\]]*)\], seq (\d+)(?::(\d+))?, ack (\d+)(?:, win \d+)?(?:, options \[[^\]]*\])?, length (\d+)'
 )
 
 

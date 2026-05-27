@@ -108,20 +108,26 @@ class RUDPSocket:
         self.socket.bind((host, port))
 
     def connect(self, host: str, port: int):
-        """Establish connection with handshake (SYN)"""
+        """Establish connection with handshake (SYN).
+
+        Retries up to 10 times with exponential backoff so that scenarios
+        with up to 20% packet loss (C) succeed with >99.9% probability.
+        """
         self.remote_addr = (host, port)
         self.connected = False
 
-        syn_header = RUDPHeader(
-            self.send_seq, 0, 0,
-            int(time.time() * 1000),
-            RUDPHeader.FLAG_SYN
-        )
-        syn_packet = syn_header.serialize()
-
-        for attempt in range(3):
+        max_attempts = 10
+        backoff = self.timeout
+        for attempt in range(max_attempts):
+            syn_header = RUDPHeader(
+                self.send_seq, 0, 0,
+                int(time.time() * 1000),
+                RUDPHeader.FLAG_SYN
+            )
+            self.socket.settimeout(backoff)
+            t_sent = time.monotonic()
             try:
-                self.socket.sendto(syn_packet, self.remote_addr)
+                self.socket.sendto(syn_header.serialize(), self.remote_addr)
                 self.stats['packets_sent'] += 1
 
                 ack_data, addr = self.socket.recvfrom(RUDPHeader.SIZE + 1024)
@@ -132,14 +138,21 @@ class RUDPSocket:
                     continue
 
                 if ack_header.flags & RUDPHeader.FLAG_SYN and ack_header.flags & RUDPHeader.FLAG_ACK:
+                    # RTT measured with monotonic clock (avoids 32-bit timestamp wrap-around)
+                    rtt_s = time.monotonic() - t_sent
+                    # Keep timeout in [0.5s, original timeout]: reduce for low-latency paths
+                    self.timeout = max(0.5, min(rtt_s * 4, self.timeout))
+                    self.socket.settimeout(self.timeout)
                     self.send_seq = (self.send_seq + 1) & 0xFFFF
                     self.send_base = self.send_seq
                     self.connected = True
-                    logger.info(f"Connected to {host}:{port}")
+                    logger.info(f"Connected to {host}:{port} (RTT≈{rtt_s*1000:.0f}ms, timeout={self.timeout:.2f}s)")
                     return
 
             except socket.timeout:
-                if attempt < 2:
+                backoff = min(backoff * 1.5, 10.0)
+                if attempt < max_attempts - 1:
+                    logger.debug(f"SYN attempt {attempt + 1}/{max_attempts} timed out, retrying")
                     continue
                 raise TimeoutError("Connection SYN-ACK timeout")
 

@@ -1,11 +1,17 @@
 """Parse tcpdump CSV exports and cross-validate with application metrics."""
 import json
 import csv
+import re
 from pathlib import Path
 from typing import List, Dict
 import logging
 
 logger = logging.getLogger(__name__)
+
+# Matches TCP data packets; handles options with commas (e.g. TS val x ecr y)
+_TCP_DATA_RE = re.compile(
+    r'Flags \[([^\]]*)\], seq (\d+)(?::(\d+))?, ack (\d+)(?:, win \d+)?(?:, options \[[^\]]*\])?, length (\d+)'
+)
 
 
 class TCPDumpParser:
@@ -50,24 +56,33 @@ class TCPDumpParser:
         return ''
 
     def get_tcp_stats(self) -> Dict:
-        tcp_packets = [
-            p for p in self.packets
-            if p.get('tcp.seq')
-            or ('protocol' in p and 'tcp' in str(p.get('protocol', '')).lower())
-        ]
-        retransmissions = 0
         seen_seqs: set[str] = set()
-        for p in tcp_packets:
-            seq = p.get('tcp.seq', '')
-            length = int(p.get('frame.len', 0) or 0)
-            if seq and length > 0:
-                if seq in seen_seqs:
-                    retransmissions += 1
-                seen_seqs.add(seq)
-            elif seq and seq in seen_seqs:
-                retransmissions += 1
-            elif seq:
-                seen_seqs.add(seq)
+        retransmissions = 0
+        tcp_packets = []
+
+        for p in self.packets:
+            raw = p.get('raw', '')
+            if raw:
+                m = _TCP_DATA_RE.search(raw)
+                if m:
+                    tcp_packets.append(p)
+                    length = int(m.group(5))
+                    if length > 0:
+                        seq = m.group(2)
+                        if seq in seen_seqs:
+                            retransmissions += 1
+                        seen_seqs.add(seq)
+            else:
+                # Legacy tshark-format: use pre-parsed tcp.seq field
+                seq = p.get('tcp.seq', '')
+                if seq:
+                    tcp_packets.append(p)
+                    length = int(p.get('frame.len', 0) or 0)
+                    if length > 0:
+                        if seq in seen_seqs:
+                            retransmissions += 1
+                        seen_seqs.add(seq)
+
         return {
             'total_packets': len(tcp_packets),
             'retransmissions': retransmissions,
