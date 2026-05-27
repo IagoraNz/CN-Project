@@ -3,8 +3,7 @@ import socket
 import struct
 import time
 import hashlib
-from typing import Tuple, Optional, List
-from collections import defaultdict
+from typing import Tuple, Optional
 import logging
 
 logger = logging.getLogger(__name__)
@@ -24,23 +23,29 @@ class RUDPHeader:
         self.sequence = sequence & 0xFFFF
         self.ack = ack & 0xFFFF
         self.length = length
-        self.timestamp = timestamp & 0xFFFFFFFF  # Keep only lower 32 bits
+        self.timestamp = timestamp & 0xFFFFFFFF
         self.flags = flags
         self.data = data[:length] if data else b''
         self.checksum = self._calculate_checksum()
 
     def _calculate_checksum(self) -> bytes:
-        """Calculate MD5 checksum of header + data"""
-        timestamp = int(time.time() * 1000) & 0xFFFFFFFF  # Keep only lower 32 bits
-        packet = struct.pack('!HHIIB', self.sequence, self.ack, self.length,
-                            timestamp, self.flags) + self.data
-        hash_obj = hashlib.md5(packet)
-        return hash_obj.digest()[:2]
+        """Calculate MD5 checksum of header fields + data."""
+        packet = struct.pack(
+            '!HHIIB', self.sequence, self.ack, self.length,
+            self.timestamp, self.flags
+        ) + self.data
+        return hashlib.md5(packet).digest()[:2]
+
+    def validate_checksum(self) -> bool:
+        """Verify stored checksum matches recalculated value."""
+        return self.checksum == self._calculate_checksum()
 
     def serialize(self) -> bytes:
         """Pack header into bytes"""
-        return struct.pack(self.FORMAT, self.sequence, self.ack, self.length,
-                          self.timestamp, self.flags) + self.checksum + self.data
+        return struct.pack(
+            self.FORMAT, self.sequence, self.ack, self.length,
+            self.timestamp, self.flags
+        ) + self.checksum + self.data
 
     @staticmethod
     def deserialize(data: bytes) -> Tuple['RUDPHeader', bytes]:
@@ -66,9 +71,9 @@ class RUDPHeader:
 class RUDPSocket:
     """Reliable UDP Socket with Go-Back-N Windowing"""
 
-    def __init__(self, timeout: float = 1.5, max_retries: int = 10,
-                 window_size: int = 8, chunk_size: int = 1024,
-                 transfer_timeout: float = 120.0):
+    def __init__(self, timeout: float = 2.0, max_retries: int = 50,
+                 window_size: int = 16, chunk_size: int = 1024,
+                 transfer_timeout: float = 600.0):
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.timeout = timeout
         self.max_retries = max_retries
@@ -76,24 +81,21 @@ class RUDPSocket:
         self.chunk_size = chunk_size
         self.transfer_timeout = transfer_timeout
 
-        # Sender state
-        self.send_seq = 0  # Next sequence to send
-        self.send_base = 0  # Base of window
-        self.unacked_packets = {}  # seq -> (packet, timestamp, retries)
+        self.send_seq = 0
+        self.send_base = 0
+        self.unacked_packets = {}
 
-        # Receiver state
-        self.recv_seq = 0  # Next expected sequence
-        self.received_packets = {}  # seq -> data (for out-of-order handling)
+        self.recv_seq = 0
+        self.received_packets = {}
 
-        # Connection state
         self.remote_addr = None
         self.connected = False
 
-        # Metrics
         self.stats = {
             'packets_sent': 0,
             'packets_received': 0,
             'retransmissions': 0,
+            'checksum_errors': 0,
             'bytes_sent': 0,
             'bytes_received': 0
         }
@@ -110,7 +112,6 @@ class RUDPSocket:
         self.remote_addr = (host, port)
         self.connected = False
 
-        # Send SYN
         syn_header = RUDPHeader(
             self.send_seq, 0, 0,
             int(time.time() * 1000),
@@ -123,12 +124,16 @@ class RUDPSocket:
                 self.socket.sendto(syn_packet, self.remote_addr)
                 self.stats['packets_sent'] += 1
 
-                # Wait for SYN-ACK
                 ack_data, addr = self.socket.recvfrom(RUDPHeader.SIZE + 1024)
                 ack_header, _ = RUDPHeader.deserialize(ack_data)
 
+                if not ack_header.validate_checksum():
+                    self.stats['checksum_errors'] += 1
+                    continue
+
                 if ack_header.flags & RUDPHeader.FLAG_SYN and ack_header.flags & RUDPHeader.FLAG_ACK:
                     self.send_seq = (self.send_seq + 1) & 0xFFFF
+                    self.send_base = self.send_seq
                     self.connected = True
                     logger.info(f"Connected to {host}:{port}")
                     return
@@ -147,17 +152,14 @@ class RUDPSocket:
         deadline = time.time() + self.transfer_timeout
 
         while offset < len(data) or self.unacked_packets:
-            # ----- global timeout guard -----
             if time.time() > deadline:
                 raise TimeoutError(
                     f"R-UDP transfer timed out after {self.transfer_timeout}s "
                     f"({offset}/{len(data)} bytes sent)"
                 )
 
-            # Clean up any already-acked packets from previous iterations
             self._process_acks()
 
-            # Fill the send window
             while (
                 (self.send_seq - self.send_base) & 0xFFFF < self.window_size
                 and offset < len(data)
@@ -177,29 +179,29 @@ class RUDPSocket:
                 self.stats['bytes_sent'] += len(chunk)
                 self.send_seq = (self.send_seq + 1) & 0xFFFF
 
-            # Wait for ACK
             try:
                 ack_data, _ = self.socket.recvfrom(RUDPHeader.SIZE + 1024)
                 ack_header, _ = RUDPHeader.deserialize(ack_data)
 
+                if not ack_header.validate_checksum():
+                    self.stats['checksum_errors'] += 1
+                    continue
+
                 if ack_header.flags & RUDPHeader.FLAG_ACK:
                     acked_seq = ack_header.ack
-                    # Cumulative ACK: remove everything up to and including acked_seq
                     for seq in list(self.unacked_packets.keys()):
                         if (acked_seq - seq) & 0xFFFF <= 32768:
                             del self.unacked_packets[seq]
                     self.send_base = (acked_seq + 1) & 0xFFFF
 
             except socket.timeout:
-                # Go-Back-N: retransmit window; raises if max_retries exhausted
                 self._retransmit_window()
 
-        # Send FIN
         self._send_fin()
         return offset
 
     def recv_data(self, expected_size: Optional[int] = None, timeout: float = 5.0) -> bytes:
-        """Receive data with window management"""
+        """Receive data with window management and checksum validation."""
         data = b''
         start_time = time.time()
 
@@ -217,37 +219,45 @@ class RUDPSocket:
 
                 header, payload = RUDPHeader.deserialize(packet)
 
-                # Handle SYN (connection setup)
+                if not header.validate_checksum():
+                    self.stats['checksum_errors'] += 1
+                    logger.warning(f"Checksum error on seq={header.sequence}, discarding")
+                    continue
+
                 if header.flags & RUDPHeader.FLAG_SYN:
                     self._send_syn_ack(header.sequence)
                     self.recv_seq = (header.sequence + 1) & 0xFFFF
                     self.connected = True
                     continue
 
-                # Handle FIN (connection close)
                 if header.flags & RUDPHeader.FLAG_FIN:
                     self._send_ack(header.sequence)
                     break
 
-                # Handle data
                 if header.sequence == self.recv_seq:
                     data += payload
                     self.stats['packets_received'] += 1
                     self.stats['bytes_received'] += len(payload)
-
                     self.recv_seq = (self.recv_seq + 1) & 0xFFFF
-
-                    # Send ACK
                     self._send_ack(header.sequence)
+
+                    while self.recv_seq in self.received_packets:
+                        buffered = self.received_packets.pop(self.recv_seq)
+                        data += buffered
+                        self.stats['bytes_received'] += len(buffered)
+                        self._send_ack((self.recv_seq - 1) & 0xFFFF)
+                        self.recv_seq = (self.recv_seq + 1) & 0xFFFF
 
                     if expected_size and len(data) >= expected_size:
                         break
+                elif (header.sequence - self.recv_seq) & 0xFFFF < 32768:
+                    self.received_packets[header.sequence] = payload
+                    self._send_ack((self.recv_seq - 1) & 0xFFFF)
                 else:
-                    # Out of order packet, send ACK for expected
                     self._send_ack((self.recv_seq - 1) & 0xFFFF)
 
             except socket.timeout:
-                if expected_size is None or len(data) == 0:
+                if time.time() - start_time >= timeout:
                     break
                 continue
 
@@ -260,13 +270,16 @@ class RUDPSocket:
             ack_data, _ = self.socket.recvfrom(RUDPHeader.SIZE + 1024)
             ack_header, _ = RUDPHeader.deserialize(ack_data)
 
+            if not ack_header.validate_checksum():
+                self.stats['checksum_errors'] += 1
+                return
+
             if ack_header.flags & RUDPHeader.FLAG_ACK:
                 acked_seq = ack_header.ack
-                # Remove acked packets
                 for seq in list(self.unacked_packets.keys()):
                     if (acked_seq - seq) & 0xFFFF <= 32768:
                         del self.unacked_packets[seq]
-                        self.send_base = (seq + 1) & 0xFFFF
+                self.send_base = (acked_seq + 1) & 0xFFFF
 
         except socket.timeout:
             pass
@@ -274,9 +287,7 @@ class RUDPSocket:
             self.socket.settimeout(self.timeout)
 
     def _retransmit_window(self):
-        """Retransmit unacked packets (Go-Back-N).
-        Raises RuntimeError if any packet has exceeded max_retries.
-        """
+        """Retransmit unacked packets (Go-Back-N)."""
         now = time.time()
         for seq in sorted(self.unacked_packets.keys()):
             packet, last_time, retries = self.unacked_packets[seq]
@@ -315,6 +326,24 @@ class RUDPSocket:
         self.socket.sendto(fin_header.serialize(), self.remote_addr)
         self.send_seq = (self.send_seq + 1) & 0xFFFF
 
+    def reset(self):
+        """Reset connection state for a new transfer on the same socket."""
+        self.send_seq = 0
+        self.send_base = 0
+        self.unacked_packets.clear()
+        self.recv_seq = 0
+        self.received_packets.clear()
+        self.remote_addr = None
+        self.connected = False
+        self.stats = {
+            'packets_sent': 0,
+            'packets_received': 0,
+            'retransmissions': 0,
+            'checksum_errors': 0,
+            'bytes_sent': 0,
+            'bytes_received': 0,
+        }
+
     def close(self):
         """Close socket"""
         if self.socket:
@@ -322,10 +351,4 @@ class RUDPSocket:
 
     def get_stats(self) -> dict:
         """Return statistics"""
-        return {
-            'packets_sent': self.stats['packets_sent'],
-            'packets_received': self.stats['packets_received'],
-            'retransmissions': self.stats['retransmissions'],
-            'bytes_sent': self.stats['bytes_sent'],
-            'bytes_received': self.stats['bytes_received']
-        }
+        return dict(self.stats)

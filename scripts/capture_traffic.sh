@@ -48,20 +48,13 @@ export_pcap() {
     csv_file="$CSV_DIR/${base}.csv"
     json_file="$CSV_DIR/${base}.json"
 
-    if command -v tshark >/dev/null 2>&1; then
-        log_info "Converting PCAP to CSV..."
-        tshark -q -r "$pcap_file" -T fields \
-            -e frame.number -e frame.time -e frame.time_epoch -e ip.src -e ip.dst \
-            -e tcp.srcport -e tcp.dstport -e udp.srcport -e udp.dstport \
-            -e frame.len -e tcp.flags -e tcp.seq -e tcp.ack \
-            -E header=y -E separator=',' > "$csv_file" 2>/dev/null
+    log_info "Converting PCAP to CSV/JSON via tcpdump..."
+    if python3 /app/analysis/pcap_export.py "$pcap_file" "$csv_file" "$json_file"; then
         log_info "CSV export: $csv_file"
-
-        log_info "Converting PCAP to JSON..."
-        tshark -q -r "$pcap_file" -T json > "$json_file" 2>/dev/null
         log_info "JSON export: $json_file"
     else
-        log_warn "tshark not found — rebuild image: make build"
+        log_warn "tcpdump export failed for $pcap_file"
+        return 1
     fi
 }
 

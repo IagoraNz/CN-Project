@@ -10,13 +10,11 @@ import hashlib
 from datetime import datetime
 from pathlib import Path
 
-# Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 from rudp import RUDPSocket
-from utils import recv_all, send_all
+from utils import recv_all, send_all, parse_auth_prefix
 
-# Configure logging
 log_dir = Path('/app/data/logs')
 log_dir.mkdir(parents=True, exist_ok=True)
 
@@ -44,53 +42,63 @@ class FileTransferServer:
         }
         self.metrics_lock = threading.Lock()
 
+    def _parse_file_payload(self, data: bytes) -> tuple[str, bytes]:
+        """Parse filename_len + filename + file_size + file_data from payload."""
+        if len(data) < 2:
+            raise ValueError('Incomplete file payload')
+        filename_len = int.from_bytes(data[:2], 'big')
+        offset = 2 + filename_len
+        if len(data) < offset + 8:
+            raise ValueError('Incomplete file payload (missing size)')
+        filename = data[2:offset].decode('utf-8')
+        file_size = int.from_bytes(data[offset:offset + 8], 'big')
+        file_data = data[offset + 8:offset + 8 + file_size]
+        if len(file_data) != file_size:
+            raise ValueError(f'Expected {file_size} bytes, got {len(file_data)}')
+        return filename, file_data
+
     def handle_tcp_client(self, conn, addr):
-        """Handle TCP file transfer"""
+        """Handle TCP file transfer with X-Custom-Auth validation."""
         logger.info(f'TCP Client connected: {addr}')
         start_time = time.time()
-        total_bytes = 0
 
         try:
-            # Receive filename length
-            filename_len_data = recv_all(conn, 4, timeout=10.0)
-            filename_len = int.from_bytes(filename_len_data, 'big')
+            auth_len = int.from_bytes(recv_all(conn, 2, timeout=10.0), 'big')
+            auth_value, _ = parse_auth_prefix(
+                auth_len.to_bytes(2, 'big') + recv_all(conn, auth_len, timeout=10.0)
+            )
+            logger.info(f'X-Custom-Auth received: {auth_value}')
 
-            # Receive filename
+            filename_len = int.from_bytes(recv_all(conn, 2, timeout=10.0), 'big')
             filename = recv_all(conn, filename_len, timeout=10.0).decode('utf-8')
-            logger.info(f'Receiving file via TCP: {filename}')
+            file_size = int.from_bytes(recv_all(conn, 8, timeout=10.0), 'big')
 
-            # Receive file size
-            file_size_data = recv_all(conn, 8, timeout=10.0)
-            file_size = int.from_bytes(file_size_data, 'big')
+            file_data = b''
+            remaining = file_size
+            while remaining > 0:
+                chunk_size = min(4096, remaining)
+                chunk = recv_all(conn, chunk_size, timeout=30.0)
+                file_data += chunk
+                remaining -= len(chunk)
 
-            # Receive file data
-            output_path = Path('/app/data') / 'received' / filename
-            output_path.parent.mkdir(parents=True, exist_ok=True)
-
-            with open(output_path, 'wb') as f:
-                remaining = file_size
-                while remaining > 0:
-                    chunk_size = min(4096, remaining)
-                    chunk = recv_all(conn, chunk_size, timeout=10.0)
-                    if not chunk:
-                        break
-                    f.write(chunk)
-                    total_bytes += len(chunk)
-                    remaining -= len(chunk)
-
+            total_bytes = len(file_data)
             elapsed = time.time() - start_time
             throughput = (total_bytes * 8) / elapsed / 1e6 if elapsed > 0 else 0
 
-            # Calculate checksum
+            output_path = Path('/app/data') / 'received' / filename
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(output_path, 'wb') as f:
+                f.write(file_data)
+
             file_checksum = self._calculate_checksum(output_path)
 
             transfer_info = {
                 'filename': filename,
-                'expected_size': file_size,
                 'received_bytes': total_bytes,
                 'elapsed_seconds': elapsed,
                 'throughput_mbps': throughput,
                 'checksum': file_checksum,
+                'x_custom_auth': auth_value,
                 'timestamp': datetime.now().isoformat()
             }
 
@@ -99,9 +107,8 @@ class FileTransferServer:
                 self.metrics['tcp']['total_bytes'] += total_bytes
 
             logger.info(f'TCP Transfer complete: {filename} ({total_bytes} bytes, '
-                       f'{throughput:.2f} Mbps, {elapsed:.2f}s)')
+                       f'{throughput:.2f} Mbps, auth={auth_value})')
 
-            # Send acknowledgment
             send_all(conn, b'ACK', timeout=5.0)
 
         except Exception as e:
@@ -112,7 +119,7 @@ class FileTransferServer:
             conn.close()
 
     def handle_rudp_client(self, data, remote_addr, stats=None):
-        """Handle R-UDP file transfer"""
+        """Handle R-UDP file transfer with X-Custom-Auth validation."""
         logger.info(f'R-UDP Client connected: {remote_addr}')
 
         try:
@@ -124,21 +131,14 @@ class FileTransferServer:
                 logger.warning('Invalid R-UDP data')
                 return
 
-            # Parse: filename_len (2 bytes) + filename + file_data
-            filename_len = int.from_bytes(data[:2], 'big')
-            if len(data) < 2 + filename_len:
-                logger.warning('Incomplete R-UDP packet')
-                return
+            auth_value, rest = parse_auth_prefix(data)
+            logger.info(f'X-Custom-Auth received: {auth_value}')
 
-            filename = data[2:2 + filename_len].decode('utf-8')
-            file_data = data[2 + filename_len:]
-
+            filename, file_data = self._parse_file_payload(rest)
             start_time = time.time()
 
-            # Save file
             output_path = Path('/app/data') / 'received' / filename
             output_path.parent.mkdir(parents=True, exist_ok=True)
-
             with open(output_path, 'wb') as f:
                 f.write(file_data)
 
@@ -152,6 +152,7 @@ class FileTransferServer:
                 'elapsed_seconds': elapsed,
                 'throughput_mbps': throughput,
                 'checksum': file_checksum,
+                'x_custom_auth': auth_value,
                 'timestamp': datetime.now().isoformat()
             }
 
@@ -160,7 +161,7 @@ class FileTransferServer:
                 self.metrics['rudp']['total_bytes'] += len(file_data)
 
             logger.info(f'R-UDP Transfer complete: {filename} ({len(file_data)} bytes, '
-                       f'{throughput:.2f} Mbps)')
+                       f'{throughput:.2f} Mbps, auth={auth_value})')
 
         except Exception as e:
             logger.error(f'R-UDP Error: {e}', exc_info=True)
@@ -180,7 +181,6 @@ class FileTransferServer:
             try:
                 while True:
                     conn, addr = server.accept()
-                    # Handle client in separate thread
                     client_thread = threading.Thread(
                         target=self.handle_tcp_client,
                         args=(conn, addr)
@@ -198,25 +198,23 @@ class FileTransferServer:
         return t
 
     def run_rudp_server(self):
-        """Run R-UDP server in background thread"""
+        """Run R-UDP server with a single persistent socket."""
         def rudp_thread():
+            rudp_socket = RUDPSocket()
+            rudp_socket.bind(self.host, self.udp_port)
             logger.info(f'R-UDP Server listening on {self.host}:{self.udp_port}')
 
             try:
                 while True:
-                    rudp_socket = RUDPSocket()
-                    rudp_socket.bind(self.host, self.udp_port)
-
+                    rudp_socket.reset()
                     try:
-                        data = rudp_socket.recv_data(timeout=120.0)
+                        data = rudp_socket.recv_data(timeout=600.0)
                     except Exception as e:
                         logger.error(f'R-UDP receive error: {e}', exc_info=True)
-                        rudp_socket.close()
                         continue
 
                     remote_addr = rudp_socket.remote_addr
                     stats = rudp_socket.get_stats()
-                    rudp_socket.close()
 
                     if not data or not remote_addr:
                         continue
@@ -230,6 +228,7 @@ class FileTransferServer:
             except KeyboardInterrupt:
                 logger.info('R-UDP Server shutting down')
             finally:
+                rudp_socket.close()
                 self.save_metrics()
 
         t = threading.Thread(target=rudp_thread, daemon=True)
@@ -238,7 +237,7 @@ class FileTransferServer:
 
     def save_metrics(self):
         """Save metrics to JSON"""
-        metrics_file = Path('/app/data/logs') / f'metrics_{datetime.now().strftime("%Y%m%d_%H%M%S")}.json'
+        metrics_file = log_dir / f'metrics_{datetime.now().strftime("%Y%m%d_%H%M%S")}.json'
         with open(metrics_file, 'w') as f:
             json.dump(self.metrics, f, indent=2)
         logger.info(f'Metrics saved to {metrics_file}')

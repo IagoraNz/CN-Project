@@ -45,14 +45,19 @@ class TestRUDPHeader(unittest.TestCase):
         self.assertEqual(header2.sequence, 0)  # Should wrap
 
     def test_checksum_validation(self):
-        """Test checksum generation and validation"""
+        """Test checksum generation and round-trip"""
         data = b'checksum_test_data'
         header = RUDPHeader(1, 2, len(data), 12345, 0, data)
         packet = header.serialize()
-
         unpacked, payload = RUDPHeader.deserialize(packet)
-        # Checksums should match
         self.assertEqual(header.checksum, unpacked.checksum)
+        self.assertTrue(unpacked.validate_checksum())
+
+    def test_checksum_validation_on_receive(self):
+        """Test that invalid checksum is rejected"""
+        header = RUDPHeader(1, 2, 5, 12345, 0, b'hello')
+        header.checksum = b'\xff\xff'
+        self.assertFalse(header.validate_checksum())
 
     def test_flags(self):
         """Test header flags"""

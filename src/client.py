@@ -9,13 +9,11 @@ from datetime import datetime
 from pathlib import Path
 import hashlib
 
-# Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 from rudp import RUDPSocket
-from utils import send_all, recv_all
+from utils import send_all, recv_all, wrap_with_auth, get_tcp_retrans_segs, build_auth_header
 
-# Configure logging
 log_dir = Path('/app/data/logs')
 log_dir.mkdir(parents=True, exist_ok=True)
 
@@ -39,8 +37,26 @@ class FileTransferClient:
         self.student_name = os.getenv('STUDENT_NAME', 'Unknown')
         self.metrics = []
 
+    @property
+    def auth_value(self) -> str:
+        return f'{self.student_id}-{self.student_name}'
+
+    def _build_file_payload(self, filepath: str) -> tuple[str, bytes, int]:
+        """Build protocol payload: filename_len + filename + file_size + file_data."""
+        filename = os.path.basename(filepath)
+        file_size = os.path.getsize(filepath)
+        with open(filepath, 'rb') as f:
+            file_data = f.read()
+        payload = (
+            len(filename).to_bytes(2, 'big')
+            + filename.encode('utf-8')
+            + file_size.to_bytes(8, 'big')
+            + file_data
+        )
+        return filename, payload, file_size
+
     def send_file_tcp(self, filepath: str) -> dict:
-        """Send file via TCP"""
+        """Send file via TCP with X-Custom-Auth header."""
         logger.info(f'Sending {filepath} via TCP to {self.server_host}:{self.tcp_port}')
 
         try:
@@ -48,38 +64,22 @@ class FileTransferClient:
             sock.settimeout(10.0)
             sock.connect((self.server_host, self.tcp_port))
 
-            filename = os.path.basename(filepath)
-            file_size = os.path.getsize(filepath)
+            filename, file_payload, file_size = self._build_file_payload(filepath)
+            auth_payload = wrap_with_auth(self.student_id, self.student_name, file_payload)
 
             start_time = time.time()
+            retrans_before = get_tcp_retrans_segs()
 
-            # Send filename length (4 bytes)
-            filename_len_data = len(filename).to_bytes(4, 'big')
-            send_all(sock, filename_len_data)
-
-            # Send filename
-            send_all(sock, filename.encode('utf-8'))
-
-            # Send file size (8 bytes)
-            file_size_data = file_size.to_bytes(8, 'big')
-            send_all(sock, file_size_data)
-
-            # Send file data in chunks
-            bytes_sent = 0
-            with open(filepath, 'rb') as f:
-                while True:
-                    chunk = f.read(4096)
-                    if not chunk:
-                        break
-                    send_all(sock, chunk)
-                    bytes_sent += len(chunk)
+            # Send auth + file payload
+            send_all(sock, auth_payload)
 
             # Receive ACK
             ack = recv_all(sock, 3, timeout=5.0)
             elapsed = time.time() - start_time
+            retrans_after = get_tcp_retrans_segs()
+            tcp_retransmissions = max(0, retrans_after - retrans_before)
+            bytes_sent = len(auth_payload)
             throughput = (bytes_sent * 8) / elapsed / 1e6 if elapsed > 0 else 0
-
-            # Calculate file checksum
             file_checksum = self._calculate_checksum(filepath)
 
             transfer_info = {
@@ -90,6 +90,8 @@ class FileTransferClient:
                 'elapsed_seconds': elapsed,
                 'throughput_mbps': throughput,
                 'checksum': file_checksum,
+                'x_custom_auth': self.auth_value,
+                'retransmissions': tcp_retransmissions,
                 'timestamp': datetime.now().isoformat()
             }
 
@@ -104,28 +106,18 @@ class FileTransferClient:
             return {'protocol': 'TCP', 'error': str(e)}
 
     def send_file_rudp(self, filepath: str) -> dict:
-        """Send file via R-UDP"""
+        """Send file via R-UDP with X-Custom-Auth header."""
         logger.info(f'Sending {filepath} via R-UDP to {self.server_host}:{self.udp_port}')
 
         try:
             rudp_socket = RUDPSocket()
             rudp_socket.connect(self.server_host, self.udp_port)
 
-            filename = os.path.basename(filepath)
-            file_size = os.path.getsize(filepath)
+            filename, file_payload, file_size = self._build_file_payload(filepath)
+            packet = wrap_with_auth(self.student_id, self.student_name, file_payload)
 
             start_time = time.time()
-
-            # Read file
-            with open(filepath, 'rb') as f:
-                file_data = f.read()
-
-            # Prepare: filename_len (2 bytes) + filename + file_data
-            packet = len(filename).to_bytes(2, 'big') + filename.encode('utf-8') + file_data
-
-            # Send via R-UDP
             bytes_sent = rudp_socket.send_data(packet)
-
             elapsed = time.time() - start_time
             throughput = (bytes_sent * 8) / elapsed / 1e6 if elapsed > 0 else 0
 
@@ -140,8 +132,10 @@ class FileTransferClient:
                 'elapsed_seconds': elapsed,
                 'throughput_mbps': throughput,
                 'checksum': file_checksum,
+                'x_custom_auth': self.auth_value,
                 'packets_sent': stats['packets_sent'],
                 'retransmissions': stats['retransmissions'],
+                'checksum_errors': stats['checksum_errors'],
                 'timestamp': datetime.now().isoformat()
             }
 
@@ -172,11 +166,25 @@ class FileTransferClient:
         return result
 
     def save_metrics(self):
-        """Save metrics to JSON"""
-        metrics_file = Path('/app/data/logs') / f'client_metrics_{datetime.now().strftime("%Y%m%d_%H%M%S")}.json'
+        """Save metrics to JSON (per-run and consolidated)."""
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        metrics_file = log_dir / f'client_metrics_{timestamp}.json'
         with open(metrics_file, 'w') as f:
             json.dump(self.metrics, f, indent=2)
-        logger.info(f'Metrics saved to {metrics_file}')
+
+        consolidated = log_dir / 'client_metrics_all.json'
+        existing = []
+        if consolidated.exists():
+            try:
+                with open(consolidated) as f:
+                    existing = json.load(f)
+            except (json.JSONDecodeError, OSError):
+                existing = []
+        existing.extend(self.metrics)
+        with open(consolidated, 'w') as f:
+            json.dump(existing, f, indent=2)
+
+        logger.info(f'Metrics saved to {metrics_file} and {consolidated}')
 
     def _calculate_checksum(self, filepath: str) -> str:
         """Calculate SHA256 checksum of file"""
@@ -185,11 +193,6 @@ class FileTransferClient:
             for chunk in iter(lambda: f.read(4096), b''):
                 sha256_hash.update(chunk)
         return sha256_hash.hexdigest()
-
-    def add_custom_header(self, data: bytes) -> bytes:
-        """Add X-Custom-Auth header"""
-        header = f'X-Custom-Auth: {self.student_id}-{self.student_name}\r\n'.encode()
-        return header + data
 
 
 if __name__ == '__main__':
@@ -204,6 +207,8 @@ if __name__ == '__main__':
     parser.add_argument('--udp-port', type=int, default=9001, help='UDP port')
     parser.add_argument('--scenario', default=None,
                        help='Network scenario label (A, B, C) for analysis')
+    parser.add_argument('--run', type=int, default=1,
+                       help='Run number for statistical analysis')
 
     args = parser.parse_args()
 
@@ -212,6 +217,7 @@ if __name__ == '__main__':
 
     if args.scenario and 'error' not in result:
         result['scenario'] = args.scenario.upper()
+        result['run'] = args.run
 
     print(json.dumps(result, indent=2))
     client.save_metrics()

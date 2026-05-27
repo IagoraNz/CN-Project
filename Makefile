@@ -81,7 +81,7 @@ test-scenario-c:
 	bash scripts/with_capture.sh tcp eth0 C
 
 test-all:
-	bash scripts/run_tests.sh
+	REPETITIONS=$${REPETITIONS:-5} bash scripts/run_tests.sh
 
 analyze: fix-perms
 	docker exec -u $(HOST_UID):$(HOST_GID) \

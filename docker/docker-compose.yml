@@ -5,6 +5,8 @@ services:
       dockerfile: docker/Dockerfile
     container_name: cn-server
     hostname: server
+    env_file:
+      - .env
     ports:
       - "9000:9000"
       - "9001:9001"
@@ -24,6 +26,8 @@ services:
       dockerfile: docker/Dockerfile
     container_name: cn-client
     hostname: client
+    env_file:
+      - .env
     volumes:
       - ./:/app
     networks:

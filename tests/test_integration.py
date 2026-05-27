@@ -70,7 +70,9 @@ class TestFileTransferIntegration(unittest.TestCase):
             result = client.send_file(str(self.test_file), 'tcp')
             self.assertNotIn('error', result)
             self.assertEqual(result['protocol'], 'TCP')
-            self.assertEqual(result['sent_bytes'], 1024)
+            self.assertEqual(result['size_bytes'], 1024)
+            self.assertGreaterEqual(result['sent_bytes'], 1024)
+            self.assertIn('x_custom_auth', result)
             self.assertGreater(result['throughput_mbps'], 0)
         except Exception as e:
             self.fail(f"TCP transfer failed: {e}")
@@ -83,7 +85,8 @@ class TestFileTransferIntegration(unittest.TestCase):
         try:
             result = client.send_file(str(self.test_file), 'tcp')
             self.assertNotIn('error', result)
-            self.assertEqual(result['sent_bytes'], 1024 * 1024)
+            self.assertEqual(result['size_bytes'], 1024 * 1024)
+            self.assertGreaterEqual(result['sent_bytes'], 1024 * 1024)
             self.assertGreater(result['throughput_mbps'], 0)
         except Exception as e:
             self.fail(f"TCP transfer failed: {e}")
