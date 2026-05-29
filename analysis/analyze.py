@@ -348,6 +348,76 @@ class NetworkAnalyzer:
         fig.subplots_adjust(bottom=0.18)
         self._save_fig(fig, filename)
 
+    def plot_throughput_subplots(self, df: pd.DataFrame):
+        """Three side-by-side subplots (one per scenario); each shows TCP vs R-UDP bars with its own y scale."""
+        if df.empty:
+            return
+
+        from matplotlib.patches import Patch
+
+        grouped = df.groupby(['protocol', 'scenario'])['throughput_mbps']
+        means_s = grouped.mean()
+        sem_s = grouped.sem().fillna(0)
+        count_s = grouped.count()
+
+        proto_colors = {p: PALETTE[i] for i, p in enumerate(PROTOCOL_ORDER)}
+
+        fig, axes = plt.subplots(1, 3, figsize=(13, 5.5))
+        fig.suptitle('Vazão por Cenário — Média ± SEM', fontweight='bold', fontsize=13)
+
+        for ax, scen in zip(axes, SCENARIO_ORDER):
+            x_vals, heights, yerrs, colors, ns = [], [], [], [], []
+            for i, proto in enumerate(PROTOCOL_ORDER):
+                key = (proto, scen)
+                n = int(count_s.get(key, 0))
+                mean = float(means_s.get(key, 0.0))
+                err = float(sem_s.get(key, 0.0))
+                err = min(err, mean * 0.4) if mean > 0 else err
+                x_vals.append(i)
+                heights.append(mean if n > 0 else 0.0)
+                yerrs.append(err if n > 0 else 0.0)
+                colors.append(proto_colors[proto] if n > 0 else '#d8d8d8')
+                ns.append(n)
+
+            bars = ax.bar(
+                x_vals, heights, yerr=yerrs,
+                capsize=5, color=colors,
+                edgecolor='gray', linewidth=0.6,
+                error_kw={'elinewidth': 1.2, 'capthick': 1.2}
+            )
+            for bar, n in zip(bars, ns):
+                if n == 0:
+                    bar.set_hatch('//')
+
+            ax.set_xticks(x_vals)
+            ax.set_xticklabels(
+                [f'{p}\n(n={n})' for p, n in zip(PROTOCOL_ORDER, ns)],
+                fontsize=9
+            )
+            ax.set_title(f'Cenário {scen}', fontweight='bold')
+            ax.set_ylabel('Mbps' if scen == 'A' else '')
+            ax.set_ylim(bottom=0)
+            ax.margins(y=0.2)
+
+            ymax = ax.get_ylim()[1]
+            for i, (h, ye, n) in enumerate(zip(heights, yerrs, ns)):
+                if n == 0:
+                    ax.text(i, ymax * 0.04, 'Sem\ndados', ha='center', va='bottom',
+                            fontsize=7, color='#888888', style='italic')
+                else:
+                    ax.text(i, h + ye + ymax * 0.01, f'{h:.1f}', ha='center', va='bottom',
+                            fontsize=8, fontweight='bold')
+
+        legend_handles = [
+            Patch(facecolor=proto_colors[p], label=p, edgecolor='gray') for p in PROTOCOL_ORDER
+        ]
+        legend_handles.append(Patch(facecolor='#d8d8d8', hatch='//', label='Sem dados', edgecolor='gray'))
+        fig.legend(handles=legend_handles, loc='lower center', ncol=3, fontsize=9,
+                   framealpha=0.85, bbox_to_anchor=(0.5, 0.0))
+
+        fig.subplots_adjust(bottom=0.18, wspace=0.35)
+        self._save_fig(fig, 'vazao_por_cenario')
+
     def run(self):
         app_metrics = self.load_app_metrics()
         pcap_metrics = self.load_pcap_metrics()
@@ -382,8 +452,7 @@ class NetworkAnalyzer:
         self.plot_with_errorbars(df, 'app_time_s',
                                  'Tempo de Transferência por Cenário — Média ± Desvio Padrão', 'Segundos',
                                  'tempo_transferencia')
-        self.plot_with_errorbars(df, 'throughput_mbps',
-                                 'Vazão por Cenário — Média ± Desvio Padrão', 'Mbps', 'vazao_por_cenario')
+        self.plot_throughput_subplots(df)
 
         print(f'Gráficos gerados ({len(df)} execuções pareadas).')
 

@@ -138,9 +138,7 @@ class RUDPSocket:
                     continue
 
                 if ack_header.flags & RUDPHeader.FLAG_SYN and ack_header.flags & RUDPHeader.FLAG_ACK:
-                    # RTT measured with monotonic clock (avoids 32-bit timestamp wrap-around)
                     rtt_s = time.monotonic() - t_sent
-                    # Keep timeout in [0.5s, original timeout]: reduce for low-latency paths
                     self.timeout = max(0.5, min(rtt_s * 4, self.timeout))
                     self.socket.settimeout(self.timeout)
                     self.send_seq = (self.send_seq + 1) & 0xFFFF
