@@ -1,0 +1,4 @@
+scenario,real_retrans_mean,sim_retrans_mean,sim_retrans_std
+A,0.0,0.0,0.0
+B,808.2,1794.6666666666667,250.1978986837162
+C,1288.2,4048.5,311.0733088007968

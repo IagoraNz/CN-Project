@@ -1,0 +1,29 @@
+[
+  {
+    "scenario": "A",
+    "real_throughput_mbps": null,
+    "sim_throughput_mbps": 5.579993965913571,
+    "sim_throughput_std": 0.033898538179990084,
+    "real_elapsed_s": null,
+    "sim_elapsed_s": 1.5033864671121864,
+    "sim_elapsed_std": 0.009158620049916908
+  },
+  {
+    "scenario": "B",
+    "real_throughput_mbps": null,
+    "sim_throughput_mbps": 0.032054391604256785,
+    "sim_throughput_std": 0.0031903840394043054,
+    "real_elapsed_s": null,
+    "sim_elapsed_s": 264.0201264407706,
+    "sim_elapsed_std": 25.980071330665815
+  },
+  {
+    "scenario": "C",
+    "real_throughput_mbps": null,
+    "sim_throughput_mbps": 0.01359009632512879,
+    "sim_throughput_std": 0.0008597995699076667,
+    "real_elapsed_s": null,
+    "sim_elapsed_s": 619.4575549660417,
+    "sim_elapsed_std": 38.74457976295066
+  }
+]

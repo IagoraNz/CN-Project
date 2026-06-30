@@ -1,0 +1,719 @@
+{
+  "task_01": {
+    "status": "ok",
+    "description": "Lat\u00eancia representada por N(\u03bc,\u03c3) ajustada a dados reais de Fase 1",
+    "data": [
+      {
+        "scenario": "A",
+        "mu_ms": 10.374593734741211,
+        "sigma_ms": 0.3109157171689633,
+        "n_samples": 5,
+        "source": "pcap",
+        "ks_stat": 0.41086678523930836,
+        "ks_p": 0.2810470008716306
+      },
+      {
+        "scenario": "B",
+        "mu_ms": 50.36940574645996,
+        "sigma_ms": 0.0978638713888213,
+        "n_samples": 5,
+        "source": "pcap",
+        "ks_stat": 0.19459531370859706,
+        "ks_p": 0.9709143125206666
+      },
+      {
+        "scenario": "C",
+        "mu_ms": 100.34399032592773,
+        "sigma_ms": 0.10011002799227445,
+        "n_samples": 5,
+        "source": "pcap",
+        "ks_stat": 0.28409149380836995,
+        "ks_p": 0.7257232522827785
+      }
+    ]
+  },
+  "task_02": {
+    "status": "ok",
+    "data": [
+      {
+        "scenario": "A",
+        "tc_loss_prob": 0.0,
+        "sim_observed_loss_rate": 0.0,
+        "error_abs": 0.0,
+        "total_packets": 30840
+      },
+      {
+        "scenario": "B",
+        "tc_loss_prob": 0.1,
+        "sim_observed_loss_rate": 0.09996241558661995,
+        "error_abs": 3.758441338005958e-05,
+        "total_packets": 82481
+      },
+      {
+        "scenario": "C",
+        "tc_loss_prob": 0.2,
+        "sim_observed_loss_rate": 0.20108599811897485,
+        "error_abs": 0.0010859981189748347,
+        "total_packets": 136096
+      }
+    ]
+  },
+  "task_03": {
+    "status": "ok",
+    "data": [
+      {
+        "scenario": "A",
+        "real_retrans_mean": 0.0,
+        "sim_retrans_mean": 0.0,
+        "sim_retrans_std": 0.0
+      },
+      {
+        "scenario": "B",
+        "real_retrans_mean": 808.2,
+        "sim_retrans_mean": 1794.6666666666667,
+        "sim_retrans_std": 250.1978986837162
+      },
+      {
+        "scenario": "C",
+        "real_retrans_mean": 1288.2,
+        "sim_retrans_mean": 4048.5,
+        "sim_retrans_std": 311.0733088007968
+      }
+    ]
+  },
+  "task_04": {
+    "status": "ok",
+    "data": [
+      {
+        "scenario": "A",
+        "file_size_mb": 1,
+        "throughput_mean_mbps": 5.591577942935043,
+        "ci_low": 5.551546299940557,
+        "ci_high": 5.631609585929529
+      },
+      {
+        "scenario": "A",
+        "file_size_mb": 2,
+        "throughput_mean_mbps": 5.707828047750288,
+        "ci_low": 5.675367749142125,
+        "ci_high": 5.740288346358452
+      },
+      {
+        "scenario": "A",
+        "file_size_mb": 3,
+        "throughput_mean_mbps": 5.735002069644332,
+        "ci_low": 5.712680403073914,
+        "ci_high": 5.75732373621475
+      },
+      {
+        "scenario": "A",
+        "file_size_mb": 5,
+        "throughput_mean_mbps": 5.769715170436516,
+        "ci_low": 5.75282550529482,
+        "ci_high": 5.7866048355782125
+      },
+      {
+        "scenario": "A",
+        "file_size_mb": 7,
+        "throughput_mean_mbps": 5.7799224696934735,
+        "ci_low": 5.766403398729464,
+        "ci_high": 5.793441540657483
+      },
+      {
+        "scenario": "A",
+        "file_size_mb": 10,
+        "throughput_mean_mbps": 5.78292666977447,
+        "ci_low": 5.77360998501706,
+        "ci_high": 5.79224335453188
+      },
+      {
+        "scenario": "B",
+        "file_size_mb": 1,
+        "throughput_mean_mbps": 0.031204059885623425,
+        "ci_low": 0.02946744504226971,
+        "ci_high": 0.03294067472897714
+      },
+      {
+        "scenario": "B",
+        "file_size_mb": 2,
+        "throughput_mean_mbps": 0.03230145947201439,
+        "ci_low": 0.031198968053033713,
+        "ci_high": 0.03340395089099507
+      },
+      {
+        "scenario": "B",
+        "file_size_mb": 3,
+        "throughput_mean_mbps": 0.03252436653816419,
+        "ci_low": 0.03145390283420157,
+        "ci_high": 0.03359483024212682
+      },
+      {
+        "scenario": "B",
+        "file_size_mb": 5,
+        "throughput_mean_mbps": 0.03252502295972377,
+        "ci_low": 0.03135502592107553,
+        "ci_high": 0.03369501999837202
+      },
+      {
+        "scenario": "B",
+        "file_size_mb": 7,
+        "throughput_mean_mbps": 0.032812871284323156,
+        "ci_low": 0.03203261393216627,
+        "ci_high": 0.03359312863648004
+      },
+      {
+        "scenario": "B",
+        "file_size_mb": 10,
+        "throughput_mean_mbps": 0.03283048091374868,
+        "ci_low": 0.03199201052060278,
+        "ci_high": 0.03366895130689459
+      },
+      {
+        "scenario": "C",
+        "file_size_mb": 1,
+        "throughput_mean_mbps": 0.013656283963919422,
+        "ci_low": 0.013012102086026113,
+        "ci_high": 0.01430046584181273
+      },
+      {
+        "scenario": "C",
+        "file_size_mb": 2,
+        "throughput_mean_mbps": 0.013658808260696004,
+        "ci_low": 0.013170160383063335,
+        "ci_high": 0.014147456138328674
+      },
+      {
+        "scenario": "C",
+        "file_size_mb": 3,
+        "throughput_mean_mbps": 0.013666864692497494,
+        "ci_low": 0.013244663728670409,
+        "ci_high": 0.01408906565632458
+      },
+      {
+        "scenario": "C",
+        "file_size_mb": 5,
+        "throughput_mean_mbps": 0.013702358730805737,
+        "ci_low": 0.013488420092313649,
+        "ci_high": 0.013916297369297824
+      },
+      {
+        "scenario": "C",
+        "file_size_mb": 7,
+        "throughput_mean_mbps": 0.013726181734583343,
+        "ci_low": 0.013538968000347014,
+        "ci_high": 0.01391339546881967
+      },
+      {
+        "scenario": "C",
+        "file_size_mb": 10,
+        "throughput_mean_mbps": 0.013809489651383233,
+        "ci_low": 0.01361840020504482,
+        "ci_high": 0.014000579097721646
+      }
+    ]
+  },
+  "task_05": {
+    "status": "ok",
+    "data": [
+      {
+        "scenario": "A",
+        "window_size": 1,
+        "throughput_mean_mbps": 0.4098578709841451
+      },
+      {
+        "scenario": "A",
+        "window_size": 2,
+        "throughput_mean_mbps": 0.8052102693466656
+      },
+      {
+        "scenario": "A",
+        "window_size": 4,
+        "throughput_mean_mbps": 1.5635819675046925
+      },
+      {
+        "scenario": "A",
+        "window_size": 8,
+        "throughput_mean_mbps": 3.00417712620294
+      },
+      {
+        "scenario": "A",
+        "window_size": 16,
+        "throughput_mean_mbps": 5.701052882616297
+      },
+      {
+        "scenario": "A",
+        "window_size": 32,
+        "throughput_mean_mbps": 10.677261966373026
+      },
+      {
+        "scenario": "A",
+        "window_size": 64,
+        "throughput_mean_mbps": 19.69463325856625
+      },
+      {
+        "scenario": "B",
+        "window_size": 1,
+        "throughput_mean_mbps": 0.014494552102231134
+      },
+      {
+        "scenario": "B",
+        "window_size": 2,
+        "throughput_mean_mbps": 0.026943259986552465
+      },
+      {
+        "scenario": "B",
+        "window_size": 4,
+        "throughput_mean_mbps": 0.030633826043875583
+      },
+      {
+        "scenario": "B",
+        "window_size": 8,
+        "throughput_mean_mbps": 0.03172617377533281
+      },
+      {
+        "scenario": "B",
+        "window_size": 16,
+        "throughput_mean_mbps": 0.03282359468243484
+      },
+      {
+        "scenario": "B",
+        "window_size": 32,
+        "throughput_mean_mbps": 0.033814023548686956
+      },
+      {
+        "scenario": "B",
+        "window_size": 64,
+        "throughput_mean_mbps": 0.031372720465417406
+      },
+      {
+        "scenario": "C",
+        "window_size": 1,
+        "throughput_mean_mbps": 0.006152767587237049
+      },
+      {
+        "scenario": "C",
+        "window_size": 2,
+        "throughput_mean_mbps": 0.011343995510711965
+      },
+      {
+        "scenario": "C",
+        "window_size": 4,
+        "throughput_mean_mbps": 0.013037365885636063
+      },
+      {
+        "scenario": "C",
+        "window_size": 8,
+        "throughput_mean_mbps": 0.013430934501622666
+      },
+      {
+        "scenario": "C",
+        "window_size": 16,
+        "throughput_mean_mbps": 0.013944415585692701
+      },
+      {
+        "scenario": "C",
+        "window_size": 32,
+        "throughput_mean_mbps": 0.013049619375637405
+      },
+      {
+        "scenario": "C",
+        "window_size": 64,
+        "throughput_mean_mbps": 0.014063331629165472
+      }
+    ]
+  },
+  "task_06": {
+    "status": "ok",
+    "data": [
+      {
+        "scenario": "A",
+        "real_rtt_ms": 20.749187469482422,
+        "sim_rtt_ms": 21.186656260005567,
+        "diff_ms": 0.4374687905231447,
+        "diff_pct": 2.1083658874188056
+      },
+      {
+        "scenario": "B",
+        "real_rtt_ms": 100.73881149291992,
+        "sim_rtt_ms": 102.06788323006019,
+        "diff_ms": 1.3290717371402678,
+        "diff_pct": 1.319324416720637
+      },
+      {
+        "scenario": "C",
+        "real_rtt_ms": 200.68798065185547,
+        "sim_rtt_ms": 201.9931142397785,
+        "diff_ms": 1.3051335879230237,
+        "diff_pct": 0.6503297226290352
+      }
+    ]
+  },
+  "task_07": {
+    "status": "ok",
+    "data": [
+      {
+        "scenario": "A",
+        "jitter_std_ms": 0,
+        "throughput_mean_mbps": 5.605006929057384,
+        "throughput_cv": 0.008762357106994878,
+        "ci_low": 5.577809016168335,
+        "ci_high": 5.632204841946433
+      },
+      {
+        "scenario": "A",
+        "jitter_std_ms": 5,
+        "throughput_mean_mbps": 4.27867363867484,
+        "throughput_cv": 0.01825377395061325,
+        "ci_low": 4.235422225162255,
+        "ci_high": 4.321925052187424
+      },
+      {
+        "scenario": "A",
+        "jitter_std_ms": 10,
+        "throughput_mean_mbps": 3.10308883192804,
+        "throughput_cv": 0.01961732129490483,
+        "ci_low": 3.069377773425409,
+        "ci_high": 3.136799890430671
+      },
+      {
+        "scenario": "A",
+        "jitter_std_ms": 20,
+        "throughput_mean_mbps": 2.0116282775654843,
+        "throughput_cv": 0.026694515423911002,
+        "ci_low": 1.9818905177477826,
+        "ci_high": 2.0413660373831863
+      },
+      {
+        "scenario": "A",
+        "jitter_std_ms": 40,
+        "throughput_mean_mbps": 1.12150377984118,
+        "throughput_cv": 0.06414977950040267,
+        "ci_low": 1.081662398680072,
+        "ci_high": 1.161345161002288
+      },
+      {
+        "scenario": "B",
+        "jitter_std_ms": 0,
+        "throughput_mean_mbps": 0.03253013450716683,
+        "throughput_cv": 0.10161985416845387,
+        "ci_low": 0.030699494698176722,
+        "ci_high": 0.03436077431615694
+      },
+      {
+        "scenario": "B",
+        "jitter_std_ms": 5,
+        "throughput_mean_mbps": 0.03291897268277136,
+        "throughput_cv": 0.10753906900699331,
+        "ci_low": 0.030958544118229143,
+        "ci_high": 0.03487940124731358
+      },
+      {
+        "scenario": "B",
+        "jitter_std_ms": 10,
+        "throughput_mean_mbps": 0.033391915293881774,
+        "throughput_cv": 0.11207049908710817,
+        "ci_low": 0.031319527088354816,
+        "ci_high": 0.03546430349940873
+      },
+      {
+        "scenario": "B",
+        "jitter_std_ms": 20,
+        "throughput_mean_mbps": 0.03291781848376858,
+        "throughput_cv": 0.07374278097663424,
+        "ci_low": 0.031573540661832836,
+        "ci_high": 0.03426209630570433
+      },
+      {
+        "scenario": "B",
+        "jitter_std_ms": 40,
+        "throughput_mean_mbps": 0.02989682998533508,
+        "throughput_cv": 0.1105726523967369,
+        "ci_low": 0.028066154587555202,
+        "ci_high": 0.03172750538311496
+      },
+      {
+        "scenario": "C",
+        "jitter_std_ms": 0,
+        "throughput_mean_mbps": 0.014138238062804155,
+        "throughput_cv": 0.06445668303169344,
+        "ci_low": 0.013633574767924312,
+        "ci_high": 0.014642901357683999
+      },
+      {
+        "scenario": "C",
+        "jitter_std_ms": 5,
+        "throughput_mean_mbps": 0.013377717828564504,
+        "throughput_cv": 0.03743453745497038,
+        "ci_low": 0.01310039030184573,
+        "ci_high": 0.013655045355283278
+      },
+      {
+        "scenario": "C",
+        "jitter_std_ms": 10,
+        "throughput_mean_mbps": 0.013377727139078496,
+        "throughput_cv": 0.05890420939660432,
+        "ci_low": 0.01294134482517487,
+        "ci_high": 0.013814109452982122
+      },
+      {
+        "scenario": "C",
+        "jitter_std_ms": 20,
+        "throughput_mean_mbps": 0.01335371646635328,
+        "throughput_cv": 0.07764366138014733,
+        "ci_low": 0.012779538353455107,
+        "ci_high": 0.013927894579251454
+      },
+      {
+        "scenario": "C",
+        "jitter_std_ms": 40,
+        "throughput_mean_mbps": 0.013077450095625553,
+        "throughput_cv": 0.07038127421252473,
+        "ci_low": 0.01256774535537561,
+        "ci_high": 0.013587154835875496
+      }
+    ]
+  },
+  "task_08": {
+    "status": "ok",
+    "summary": {
+      "loss_prob": 0.25,
+      "predicted_elapsed_s": 720.1584144271312,
+      "simulated_elapsed_mean_s": 828.7854968833392,
+      "ci_low_s": 809.4289460600445,
+      "ci_high_s": 848.1420477066339,
+      "runs": 30
+    },
+    "runs": [
+      {
+        "run": 1,
+        "elapsed_s": 834.4304368030353,
+        "throughput_mbps": 0.010053094458226365,
+        "retransmissions": 5563
+      },
+      {
+        "run": 2,
+        "elapsed_s": 751.8117789772136,
+        "throughput_mbps": 0.011157856573372798,
+        "retransmissions": 5011
+      },
+      {
+        "run": 3,
+        "elapsed_s": 787.3571242419699,
+        "throughput_mbps": 0.010654133609416635,
+        "retransmissions": 5279
+      },
+      {
+        "run": 4,
+        "elapsed_s": 880.2135519958184,
+        "throughput_mbps": 0.009530196372209287,
+        "retransmissions": 5876
+      },
+      {
+        "run": 5,
+        "elapsed_s": 904.8729871822941,
+        "throughput_mbps": 0.009270481182250217,
+        "retransmissions": 6076
+      },
+      {
+        "run": 6,
+        "elapsed_s": 751.3539894564376,
+        "throughput_mbps": 0.011164654899974228,
+        "retransmissions": 4998
+      },
+      {
+        "run": 7,
+        "elapsed_s": 784.4186238438971,
+        "throughput_mbps": 0.010694044920674106,
+        "retransmissions": 5208
+      },
+      {
+        "run": 8,
+        "elapsed_s": 812.2991202134688,
+        "throughput_mbps": 0.010326993826849781,
+        "retransmissions": 5227
+      },
+      {
+        "run": 9,
+        "elapsed_s": 864.4480800378084,
+        "throughput_mbps": 0.009704004432091639,
+        "retransmissions": 5765
+      },
+      {
+        "run": 10,
+        "elapsed_s": 810.3342981689833,
+        "throughput_mbps": 0.010352033745769797,
+        "retransmissions": 5169
+      },
+      {
+        "run": 11,
+        "elapsed_s": 854.8804220632954,
+        "throughput_mbps": 0.00981260979138309,
+        "retransmissions": 5439
+      },
+      {
+        "run": 12,
+        "elapsed_s": 773.7777613353962,
+        "throughput_mbps": 0.010841107639902736,
+        "retransmissions": 5109
+      },
+      {
+        "run": 13,
+        "elapsed_s": 871.6447849054246,
+        "throughput_mbps": 0.009623883656815754,
+        "retransmissions": 5588
+      },
+      {
+        "run": 14,
+        "elapsed_s": 841.3430758480398,
+        "throughput_mbps": 0.009970496270554817,
+        "retransmissions": 5517
+      },
+      {
+        "run": 15,
+        "elapsed_s": 848.5954195492288,
+        "throughput_mbps": 0.009885285504435083,
+        "retransmissions": 5450
+      },
+      {
+        "run": 16,
+        "elapsed_s": 782.7759214025855,
+        "throughput_mbps": 0.010716487018365627,
+        "retransmissions": 5200
+      },
+      {
+        "run": 17,
+        "elapsed_s": 899.7698859466913,
+        "throughput_mbps": 0.009323059296626648,
+        "retransmissions": 5992
+      },
+      {
+        "run": 18,
+        "elapsed_s": 756.9752743397022,
+        "throughput_mbps": 0.011081746371857723,
+        "retransmissions": 5040
+      },
+      {
+        "run": 19,
+        "elapsed_s": 728.9747158759129,
+        "throughput_mbps": 0.011507405973498702,
+        "retransmissions": 4844
+      },
+      {
+        "run": 20,
+        "elapsed_s": 841.1521615381847,
+        "throughput_mbps": 0.009972759250431045,
+        "retransmissions": 5553
+      },
+      {
+        "run": 21,
+        "elapsed_s": 888.0438086209846,
+        "throughput_mbps": 0.009446164613237275,
+        "retransmissions": 5717
+      },
+      {
+        "run": 22,
+        "elapsed_s": 831.2063334999228,
+        "throughput_mbps": 0.010092088645040118,
+        "retransmissions": 5311
+      },
+      {
+        "run": 23,
+        "elapsed_s": 862.0972076038693,
+        "throughput_mbps": 0.009730466501933663,
+        "retransmissions": 5726
+      },
+      {
+        "run": 24,
+        "elapsed_s": 812.7604145687175,
+        "throughput_mbps": 0.010321132586718466,
+        "retransmissions": 5411
+      },
+      {
+        "run": 25,
+        "elapsed_s": 811.8695976206187,
+        "throughput_mbps": 0.010332457360867874,
+        "retransmissions": 5467
+      },
+      {
+        "run": 26,
+        "elapsed_s": 772.1859339904005,
+        "throughput_mbps": 0.01086345610654996,
+        "retransmissions": 5124
+      },
+      {
+        "run": 27,
+        "elapsed_s": 828.9542323170524,
+        "throughput_mbps": 0.010119506811072758,
+        "retransmissions": 5516
+      },
+      {
+        "run": 28,
+        "elapsed_s": 880.9055733002265,
+        "throughput_mbps": 0.009522709645907792,
+        "retransmissions": 5907
+      },
+      {
+        "run": 29,
+        "elapsed_s": 936.0367172606385,
+        "throughput_mbps": 0.008961836480677499,
+        "retransmissions": 6317
+      },
+      {
+        "run": 30,
+        "elapsed_s": 858.0756739923539,
+        "throughput_mbps": 0.009776070169860972,
+        "retransmissions": 5744
+      }
+    ]
+  },
+  "task_09": {
+    "status": "ok",
+    "data": [
+      {
+        "scenario": "A",
+        "efficiency_ratio": 0.49951219512195133,
+        "overhead_pct": 50.04878048780487,
+        "data_share_pct": 49.95121951219513
+      },
+      {
+        "scenario": "B",
+        "efficiency_ratio": 0.28553815496056933,
+        "overhead_pct": 71.44618450394307,
+        "data_share_pct": 28.553815496056934
+      },
+      {
+        "scenario": "C",
+        "efficiency_ratio": 0.20345132220680698,
+        "overhead_pct": 79.6548677793193,
+        "data_share_pct": 20.345132220680696
+      }
+    ]
+  },
+  "task_10": {
+    "status": "ok",
+    "n_runs": 30,
+    "data": [
+      {
+        "scenario": "A",
+        "n_runs": 30,
+        "throughput_mean": 5.588364697983029,
+        "throughput_ci95_low": 5.571031785040144,
+        "throughput_ci95_high": 5.6056976109259145
+      },
+      {
+        "scenario": "B",
+        "n_runs": 30,
+        "throughput_mean": 0.03292734063031189,
+        "throughput_ci95_low": 0.031687694557812326,
+        "throughput_ci95_high": 0.03416698670281146
+      },
+      {
+        "scenario": "C",
+        "n_runs": 30,
+        "throughput_mean": 0.013375570660127184,
+        "throughput_ci95_low": 0.0130372685939994,
+        "throughput_ci95_high": 0.013713872726254968
+      }
+    ]
+  }
+}
