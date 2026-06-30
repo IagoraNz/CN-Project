@@ -3,8 +3,8 @@
 Projeto de pós-graduação (PPGCC) dividido em duas fases que comparam, lado a lado, um sistema **real** de transferência de arquivos (TCP vs. R-UDP sobre Docker) com um **modelo de simulação estocástica** (SimPy) calibrado pelos dados coletados na primeira fase.
 
 ```
-┌────────────────────────┐        dados reais        ┌────────────────────────┐
-│        Fase 1          │ ─────────────────────────► │        Fase 2          │
+┌────────────────────────┐        dados reais          ┌────────────────────────┐
+│        Fase 1          │ ─────────────────────────►  │        Fase 2          │
 │  Sockets + Docker + tc │   (logs, csv, RTT, perda)   │  Simulação SimPy       │
 │  Implementação real    │                             │  Validação estatística │
 └────────────────────────┘                             └────────────────────────┘
